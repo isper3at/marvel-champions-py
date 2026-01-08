@@ -1,0 +1,21 @@
+# Web Framework
+flask==3.0.0
+flask-cors==4.0.0
+
+# MongoDB
+pymongo==4.6.1
+
+# HTTP Requests
+requests==2.31.0
+
+# HTML Parsing
+beautifulsoup4==4.12.2
+
+# Data Validation & Serialization
+pydantic==2.5.3
+
+# Date/Time
+python-dateutil==2.8.2
+
+# Development
+python-dotenv==1.0.0
