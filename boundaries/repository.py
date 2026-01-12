@@ -66,11 +66,6 @@ class DeckRepository(ABC):
         pass
     
     @abstractmethod
-    def find_by_hero(self, hero_code: str) -> List[Deck]:
-        """Find all decks for a specific hero"""
-        pass
-    
-    @abstractmethod
     def find_by_marvelcdb_id(self, marvelcdb_id: str) -> Optional[Deck]:
         """Find a deck by its MarvelCDB ID"""
         pass

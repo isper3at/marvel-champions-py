@@ -10,6 +10,8 @@ class MongoGameRepository(GameRepository):
     """MongoDB implementation of GameRepository"""
     
     def __init__(self, db: Database):
+        if 'games' not in db.list_collection_names():
+            db.create_collection('games', capped=False)
         self.collection = db['games']
         self.collection.create_index('updated_at')
         self.collection.create_index('name')

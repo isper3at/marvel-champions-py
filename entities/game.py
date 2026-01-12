@@ -71,24 +71,19 @@ class CardInPlay:
 
 
 @dataclass(frozen=True)
-class GameState:
+class PlayerZones:
     """
-    Game state - just zones and cards.
-    No rules about what you can/can't do.
+    One player's zones (deck, hand, discard).
+    Each player in a multiplayer game has their own zones.
     """
-    # Deck zones (just lists of card codes)
-    deck: tuple[str, ...]  # Your deck
-    hand: tuple[str, ...]  # Your hand
-    discard: tuple[str, ...]  # Discard pile
+    player_name: str
+    deck: list[str]
+    hand: list[str]
+    discard: list[str]
+    removed: list[str] = ()  # Removed from game
     
-    # Play area
-    play_area: tuple[CardInPlay, ...]  # All cards on the table
-    
-    # Optional: Additional zones if you want
-    removed: tuple[str, ...] = ()  # Removed from game
-    
-    def draw_card(self) -> tuple['GameState', Optional[str]]:
-        """Draw a card. Returns new state and drawn card."""
+    def draw_card(self) -> tuple['PlayerZones', Optional[str]]:
+        """Draw a card from this player's deck"""
         if not self.deck:
             return self, None
         
@@ -96,43 +91,61 @@ class GameState:
         new_deck = self.deck[1:]
         new_hand = self.hand + (drawn,)
         
-        return GameState(
+        return PlayerZones(
+            player_name=self.player_name,
             deck=new_deck,
             hand=new_hand,
             discard=self.discard,
-            play_area=self.play_area,
             removed=self.removed
         ), drawn
     
-    def shuffle_discard_into_deck(self) -> 'GameState':
+    def shuffle_discard_into_deck(self) -> 'PlayerZones':
         """Shuffle discard pile into deck"""
         import random
         combined = list(self.deck) + list(self.discard)
         random.shuffle(combined)
         
-        return GameState(
+        return PlayerZones(
+            player_name=self.player_name,
             deck=tuple(combined),
             hand=self.hand,
             discard=(),
-            play_area=self.play_area,
             removed=self.removed
         )
+
+
+@dataclass(frozen=True)
+class GameState:
+    """
+    Game state - supports any number of players.
+    No rules about what you can/can't do.
+    """
+    # Each player has their own zones
+    players: list[PlayerZones]
     
-    def move_to_discard(self, card_code: str, from_zone: str = 'hand') -> 'GameState':
-        """Move a card to discard pile"""
-        if from_zone == 'hand':
-            if card_code not in self.hand:
-                return self
-            new_hand = tuple(c for c in self.hand if c != card_code or self.hand.index(c) != self.hand.index(card_code))
-            return GameState(
-                deck=self.deck,
-                hand=new_hand,
-                discard=self.discard + (card_code,),
-                play_area=self.play_area,
-                removed=self.removed
-            )
+    # Shared play area - all cards on the table
+    play_area: tuple[CardInPlay, ...]
+    
+    def get_player(self, player_name: str) -> Optional[PlayerZones]:
+        """Get player zones by name"""
+        for p in self.players:
+            if p.player_name == player_name:
+                return p
+        return None
+    
+    def update_player(self, updated_player: PlayerZones) -> 'GameState':
+        """Return new GameState with updated player zones"""
+        new_players = []
+        for p in self.players:
+            if p.player_name == updated_player.player_name:
+                new_players.append(updated_player)
+            else:
+                new_players.append(p)
         
-        return self
+        return GameState(
+            players=tuple(new_players),
+            play_area=self.play_area
+        )
 
 
 @dataclass(frozen=True)
@@ -143,7 +156,7 @@ class Game:
     """
     id: Optional[str]
     name: str
-    deck_id: str  # Reference to the deck being used
+    deck_ids: tuple[str, ...]  # Reference to the decks being used
     state: GameState
     
     # Audit trail
@@ -153,5 +166,5 @@ class Game:
     def __post_init__(self):
         if not self.name:
             raise ValueError("Game name cannot be empty")
-        if not self.deck_id:
-            raise ValueError("Deck ID cannot be empty")
+        if not self.deck_ids:
+            raise ValueError("Deck IDs cannot be empty")

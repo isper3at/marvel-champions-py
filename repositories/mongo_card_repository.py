@@ -1,6 +1,7 @@
 from typing import Optional, List
 from pymongo.database import Database
-from datetime import datetime
+from pymongo import UpdateOne
+from datetime import datetime, UTC
 from boundaries.repository import CardRepository
 from entities import Card
 
@@ -9,9 +10,14 @@ class MongoCardRepository(CardRepository):
     """MongoDB implementation of CardRepository"""
     
     def __init__(self, db: Database):
+        if 'cards' not in db.list_collection_names():
+            db.create_collection('cards', capped=False)
         self.collection = db['cards']
         self.collection.create_index('code', unique=True)
         self.collection.create_index('name')
+    
+    def find_all(self, limit = 100, offset = 0):
+        return super().find_all(limit, offset)
     
     def find_by_code(self, code: str) -> Optional[Card]:
         """Find a card by its unique code"""
@@ -26,7 +32,7 @@ class MongoCardRepository(CardRepository):
     def save(self, card: Card) -> Card:
         """Save a card and return the saved entity"""
         doc = self._to_document(card)
-        doc['updated_at'] = datetime.utcnow()
+        doc['updated_at'] = datetime.now(UTC)
         
         self.collection.update_one(
             {'code': card.code},
@@ -44,14 +50,13 @@ class MongoCardRepository(CardRepository):
         operations = []
         for card in cards:
             doc = self._to_document(card)
-            doc['updated_at'] = datetime.utcnow()
-            operations.append({
-                'update_one': {
-                    'filter': {'code': card.code},
-                    'update': {'$set': doc},
-                    'upsert': True
-                }
-            })
+            doc['updated_at'] = datetime.now(UTC)
+            operations.append(
+                UpdateOne(
+                    filter={'code': card.code},
+                    update={'$set': doc},
+                    upsert=True)
+            )
         
         if operations:
             self.collection.bulk_write(operations)
@@ -84,7 +89,7 @@ class MongoCardRepository(CardRepository):
         doc = {
             'code': card.code,
             'name': card.name,
-            'created_at': card.created_at or datetime.utcnow()
+            'created_at': card.created_at or datetime.now(UTC)
         }
         
         if card.text:

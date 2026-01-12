@@ -8,6 +8,11 @@ and starts the Flask server.
 
 from flask import Flask
 from config import load_config
+from repositories.mongo_game_repository import MongoGameRepository
+from repositories.mongo_deck_repository import MongoDeckRepository
+from repositories.mongo_card_repository import MongoCardRepository
+from gateways.marvelcdb_client import MarvelCDBClient
+from pymongo import MongoClient
 
 
 def create_app():
@@ -22,16 +27,17 @@ def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = config.secret_key
     
-    # TODO: Initialize MongoDB connection
-    # db = MongoClient(config.mongo.connection_string)
+    # Initialize MongoDB connection
+    client = MongoClient(config.mongo.connection_string)
+    db = client[config.mongo.database]
     
-    # TODO: Initialize repositories
-    # card_repo = MongoCardRepository(db)
-    # deck_repo = MongoDeckRepository(db)
-    # etc.
+    # Initialize repositories
+    card_repo = MongoCardRepository(db)
+    deck_repo = MongoDeckRepository(db)
+    game_repo = MongoGameRepository(db)
     
-    # TODO: Initialize gateways
-    # marvelcdb_gateway = MarvelCDBClient(config.marvelcdb)
+    # Initialize gateways
+    marvelcdb_gateway = MarvelCDBClient(config.marvelcdb)
     # image_storage = LocalImageStorage(config.image_storage)
     
     # TODO: Initialize interactors with dependency injection
@@ -60,7 +66,7 @@ def create_app():
     <h2>Status</h2>
     <ul>
         <li>✅ Flask server running</li>
-        <li>⏳ Repositories not yet implemented</li>
+        <li>✅ Repositories not yet implemented</li>
         <li>⏳ Gateways not yet implemented</li>
         <li>⏳ Interactors not yet implemented</li>
     </ul>

@@ -10,6 +10,8 @@ class MongoDeckRepository(DeckRepository):
     """MongoDB implementation of DeckRepository"""
     
     def __init__(self, db: Database):
+        if 'decks' not in db.list_collection_names():
+            db.create_collection('decks', capped=False)
         self.collection = db['decks']
         self.collection.create_index('updated_at')
         self.collection.create_index('name')
@@ -21,6 +23,11 @@ class MongoDeckRepository(DeckRepository):
             return self._to_entity(doc) if doc else None
         except Exception:
             return None
+    
+    def find_by_marvelcdb_id(self, marvelcdb_id: str) -> Optional[Deck]:
+        """Find a deck by its MarvelCDB ID"""
+        doc = self.collection.find_one({'source_url': {'$regex': f'/decklist/{marvelcdb_id}$'}})
+        return self._to_entity(doc) if doc else None
     
     def save(self, deck: Deck) -> Deck:
         """Save a deck and return the saved entity"""
