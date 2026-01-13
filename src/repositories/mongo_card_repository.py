@@ -2,8 +2,8 @@ from typing import Optional, List
 from pymongo.database import Database
 from pymongo import UpdateOne
 from datetime import datetime, UTC
-from boundaries.repository import CardRepository
-from entities import Card
+from src.boundaries.repository import CardRepository
+from src.entities import Card
 
 
 class MongoCardRepository(CardRepository):

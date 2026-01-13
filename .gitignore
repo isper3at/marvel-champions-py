@@ -4,24 +4,20 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
+dist/
+build/
 *.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+.poetry/
+
+# Poetry
+poetry.lock
 
 # IDEs
 .vscode/
@@ -34,6 +30,10 @@ wheels/
 .env
 .env.local
 
+# Logs
+logs/
+*.log
+
 # Database
 *.db
 *.sqlite
@@ -42,9 +42,14 @@ wheels/
 static/images/cards/*.jpg
 static/images/cards/*.png
 
-# Logs
-*.log
+# Coverage
+htmlcov/
+.coverage
+.pytest_cache/
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Backup
+backup_*/

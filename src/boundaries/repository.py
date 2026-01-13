@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List
-from entities import Card, Deck, Game
+from src.entities import Card, Deck, Game
 
 
 class CardRepository(ABC):

@@ -2,8 +2,8 @@ from typing import Optional, List
 from pymongo.database import Database
 from datetime import datetime
 from bson.objectid import ObjectId
-from boundaries.repository import DeckRepository
-from entities import Deck, DeckCard
+from src.boundaries.repository import DeckRepository
+from src.entities import Deck, DeckCard
 
 
 class MongoDeckRepository(DeckRepository):

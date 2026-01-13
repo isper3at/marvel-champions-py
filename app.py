@@ -16,12 +16,12 @@ from flask_socketio import SocketIO, join_room, leave_room
 # Create SocketIO instance (will be initialized with the Flask app later)
 # Let Flask-SocketIO auto-detect the best async mode available instead of forcing one
 socketio = SocketIO()
-from config import load_config
+from src.config import load_config
 from logging_service import initialize_logger, get_logger, LogLevel
-from repositories.mongo_game_repository import MongoGameRepository
-from repositories.mongo_deck_repository import MongoDeckRepository
-from repositories.mongo_card_repository import MongoCardRepository
-from gateways.marvelcdb_client import MarvelCDBClient
+from src.repositories.mongo_game_repository import MongoGameRepository
+from src.repositories.mongo_deck_repository import MongoDeckRepository
+from src.repositories.mongo_card_repository import MongoCardRepository
+from src.gateways.marvelcdb_client import MarvelCDBClient
 from pymongo import MongoClient
 
 # Initialize logging early

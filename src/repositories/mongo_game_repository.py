@@ -2,8 +2,8 @@ from typing import Optional, List
 from pymongo.database import Database
 from datetime import datetime
 from bson.objectid import ObjectId
-from boundaries.repository import GameRepository
-from entities import Game, GameState, PlayerZones, CardInPlay, Position
+from src.boundaries.repository import GameRepository
+from src.entities import Game, GameState, PlayerZones, CardInPlay, Position
 
 
 class MongoGameRepository(GameRepository):
