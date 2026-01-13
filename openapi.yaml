@@ -1,0 +1,1377 @@
+openapi: 3.0.0
+info:
+  title: Marvel Champions Game API
+  description: |
+    REST API for managing Marvel Champions card games.
+    
+    ## Architecture
+    - **Entities**: Immutable data structures (Card, Deck, Game)
+    - **No Rules Enforcement**: Backend manages state, UI enforces rules
+    - **Stateless Actions**: All operations are idempotent where possible
+    
+    ## Key Concepts
+    - **Card**: Individual card definition from MarvelCDB
+    - **Deck**: Collection of cards (identified by code and quantity)
+    - **Game**: Active game session with player state
+    - **PlayerZones**: Player's cards (deck, hand, discard, removed)
+    - **Position**: (x, y) coordinates on play table
+  version: 1.0.0
+  contact:
+    name: Marvel Champions Backend Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+  - url: https://api.marvelchampions.example.com
+    description: Production server
+
+tags:
+  - name: Cards
+    description: Card operations (import, search, retrieve)
+  - name: Decks
+    description: Deck operations (create, update, retrieve)
+  - name: Games
+    description: Game operations (create, play actions, retrieve)
+  - name: Health
+    description: System health and status
+
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      operationId: health_check
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+
+  # ============================================================================
+  # CARD ENDPOINTS
+  # ============================================================================
+
+  /api/cards/{code}:
+    get:
+      summary: Get card by code
+      operationId: get_card
+      tags:
+        - Cards
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "01001a"
+          description: MarvelCDB card code (e.g., "01001a" for Spider-Man)
+      responses:
+        '200':
+          description: Card found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        '404':
+          description: Card not found (may need to import first)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cards/search:
+    get:
+      summary: Search cards by name
+      operationId: search_cards
+      tags:
+        - Cards
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "Spider-Man"
+          description: Search query (case-insensitive substring match)
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CardResponse'
+                  count:
+                    type: integer
+                    example: 5
+        '400':
+          description: Missing query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cards/import:
+    post:
+      summary: Import single card from MarvelCDB
+      operationId: import_card
+      tags:
+        - Cards
+      description: |
+        Imports a card from MarvelCDB if not already in system.
+        Idempotent - calling multiple times returns same result.
+        Also downloads and caches card image.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  example: "01001a"
+                  description: MarvelCDB card code to import
+      responses:
+        '201':
+          description: Card imported successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  card:
+                    $ref: '#/components/schemas/CardResponse'
+        '400':
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Import failed (MarvelCDB API error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cards/import/bulk:
+    post:
+      summary: Import multiple cards from MarvelCDB
+      operationId: import_cards_bulk
+      tags:
+        - Cards
+      description: |
+        Bulk import multiple cards efficiently.
+        Deduplicates cards already in system.
+        If one card fails, continues with others.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - codes
+              properties:
+                codes:
+                  type: array
+                  items:
+                    type: string
+                  example: ["01001a", "01002b", "01003c"]
+                  description: Array of card codes to import
+      responses:
+        '201':
+          description: Cards imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  imported:
+                    type: integer
+                    example: 3
+                  cards:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CardResponse'
+        '400':
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Import error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cards/{code}/image:
+    get:
+      summary: Get card image
+      operationId: get_card_image
+      tags:
+        - Cards
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "01001a"
+          description: Card code
+      responses:
+        '200':
+          description: Card image
+          content:
+            image/jpeg: {}
+            image/png: {}
+        '404':
+          description: Image not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============================================================================
+  # DECK ENDPOINTS
+  # ============================================================================
+
+  /api/decks:
+    get:
+      summary: List all decks
+      operationId: list_decks
+      tags:
+        - Decks
+      responses:
+        '200':
+          description: List of all decks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeckSummary'
+                  count:
+                    type: integer
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create new deck
+      operationId: create_deck
+      tags:
+        - Decks
+      description: |
+        Create a new player deck.
+        Cards must already be imported (see /api/cards/import).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - cards
+              properties:
+                name:
+                  type: string
+                  example: "Spider-Man Control"
+                  description: Display name for the deck
+                cards:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - code
+                      - quantity
+                    properties:
+                      code:
+                        type: string
+                        example: "01001a"
+                      quantity:
+                        type: integer
+                        minimum: 1
+                        example: 2
+      responses:
+        '201':
+          description: Deck created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  deck:
+                    $ref: '#/components/schemas/DeckDetail'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/decks/{deck_id}:
+    get:
+      summary: Get deck by ID
+      operationId: get_deck
+      tags:
+        - Decks
+      parameters:
+        - name: deck_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Deck identifier
+      responses:
+        '200':
+          description: Deck details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeckDetail'
+        '404':
+          description: Deck not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Update deck
+      operationId: update_deck
+      tags:
+        - Decks
+      parameters:
+        - name: deck_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                cards:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      quantity:
+                        type: integer
+      responses:
+        '200':
+          description: Deck updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  deck:
+                    $ref: '#/components/schemas/DeckDetail'
+        '404':
+          description: Deck not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete deck
+      operationId: delete_deck
+      tags:
+        - Decks
+      parameters:
+        - name: deck_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deck deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '404':
+          description: Deck not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/decks/{deck_id}/cards:
+    get:
+      summary: Get deck with all card details
+      operationId: get_deck_with_cards
+      tags:
+        - Decks
+      description: |
+        Returns deck information along with complete Card entities
+        for all cards in the deck.
+      parameters:
+        - name: deck_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deck with full card details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deck:
+                    $ref: '#/components/schemas/DeckDetail'
+                  cards:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CardResponse'
+        '404':
+          description: Deck not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/decks/import:
+    post:
+      summary: Import deck from MarvelCDB
+      operationId: import_deck
+      tags:
+        - Decks
+      description: |
+        Import a complete deck from MarvelCDB.
+        Automatically imports all cards in the deck.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - deck_id
+              properties:
+                deck_id:
+                  type: string
+                  example: "12345"
+                  description: MarvelCDB deck ID (from URL)
+      responses:
+        '201':
+          description: Deck imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  deck:
+                    $ref: '#/components/schemas/DeckDetail'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Import failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/decks/marvelcdb/mine:
+    get:
+      summary: Get user's MarvelCDB decks
+      operationId: get_user_decks
+      tags:
+        - Decks
+      description: |
+        Get list of decks from authenticated MarvelCDB account.
+        Requires session cookie.
+      parameters:
+        - name: session_cookie
+          in: cookie
+          required: true
+          schema:
+            type: string
+          description: MarvelCDB session cookie
+      responses:
+        '200':
+          description: List of user's decks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============================================================================
+  # GAME ENDPOINTS
+  # ============================================================================
+
+  /api/games:
+    get:
+      summary: List all games
+      operationId: list_games
+      tags:
+        - Games
+      responses:
+        '200':
+          description: List of all games
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  games:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GameSummary'
+                  count:
+                    type: integer
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create new game
+      operationId: create_game
+      tags:
+        - Games
+      description: |
+        Create a new game session.
+        Decks are shuffled into player decks automatically.
+        All players start with empty hands and play areas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - deck_ids
+                - player_names
+              properties:
+                name:
+                  type: string
+                  example: "Alice vs Bob"
+                  description: Game name
+                deck_ids:
+                  type: array
+                  items:
+                    type: string
+                  example: ["deck1", "deck2"]
+                  description: Deck ID for each player (in order)
+                player_names:
+                  type: array
+                  items:
+                    type: string
+                  example: ["Alice", "Bob"]
+                  description: Player names (in same order as deck_ids)
+      responses:
+        '201':
+          description: Game created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  game:
+                    $ref: '#/components/schemas/GameDetail'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/games/recent:
+    get:
+      summary: Get recent games
+      operationId: list_recent_games
+      tags:
+        - Games
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+          description: Maximum number of games to return
+      responses:
+        '200':
+          description: List of recent games
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  games:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GameSummary'
+                  count:
+                    type: integer
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/games/{game_id}:
+    get:
+      summary: Get game state
+      operationId: get_game
+      tags:
+        - Games
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Complete game state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDetail'
+        '404':
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete game
+      operationId: delete_game
+      tags:
+        - Games
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Game deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '404':
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/games/{game_id}/draw:
+    post:
+      summary: Draw card for player
+      operationId: draw_card
+      tags:
+        - Games
+      description: |
+        Draw a card from player's deck into their hand.
+        If deck is empty, no change occurs.
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - player_name
+              properties:
+                player_name:
+                  type: string
+                  example: "Alice"
+      responses:
+        '200':
+          description: Card drawn (or no change if deck empty)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  game:
+                    $ref: '#/components/schemas/GameDetail'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/games/{game_id}/shuffle:
+    post:
+      summary: Shuffle discard into deck
+      operationId: shuffle_discard
+      tags:
+        - Games
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - player_name
+              properties:
+                player_name:
+                  type: string
+                  example: "Alice"
+      responses:
+        '200':
+          description: Discard shuffled into deck
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  game:
+                    $ref: '#/components/schemas/GameDetail'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/games/{game_id}/play:
+    post:
+      summary: Play card to table
+      operationId: play_card
+      tags:
+        - Games
+      description: |
+        Play a card from player's hand to the table.
+        No validation that player has card or can afford cost.
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - player_name
+                - card_code
+                - position
+              properties:
+                player_name:
+                  type: string
+                  example: "Alice"
+                card_code:
+                  type: string
+                  example: "01001a"
+                position:
+                  type: object
+                  required:
+                    - x
+                    - y
+                  properties:
+                    x:
+                      type: integer
+                      example: 1
+                    y:
+                      type: integer
+                      example: 2
+      responses:
+        '200':
+          description: Card played
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  game:
+                    $ref: '#/components/schemas/GameDetail'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/games/{game_id}/move:
+    post:
+      summary: Move card on table
+      operationId: move_card
+      tags:
+        - Games
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - card_code
+                - position
+              properties:
+                card_code:
+                  type: string
+                  example: "01001a"
+                position:
+                  type: object
+                  required:
+                    - x
+                    - y
+                  properties:
+                    x:
+                      type: integer
+                    y:
+                      type: integer
+      responses:
+        '200':
+          description: Card moved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  game:
+                    $ref: '#/components/schemas/GameDetail'
+        '404':
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/games/{game_id}/rotate:
+    post:
+      summary: Toggle card rotation
+      operationId: toggle_rotation
+      tags:
+        - Games
+      description: |
+        Toggle card rotation state (exhaust/ready).
+        This is purely visual - rotation itself has no game effects.
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - card_code
+              properties:
+                card_code:
+                  type: string
+                  example: "01001a"
+      responses:
+        '200':
+          description: Card rotated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  game:
+                    $ref: '#/components/schemas/GameDetail'
+        '404':
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/games/{game_id}/counter:
+    post:
+      summary: Add counter to card
+      operationId: add_counter
+      tags:
+        - Games
+      description: |
+        Add or modify counters on a card.
+        Counters are generic (damage, threat, tokens, etc).
+        Pass negative amount to decrease.
+      parameters:
+        - name: game_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - card_code
+                - counter_type
+              properties:
+                card_code:
+                  type: string
+                  example: "01001a"
+                counter_type:
+                  type: string
+                  example: "damage"
+                  description: Name of counter (application-defined)
+                amount:
+                  type: integer
+                  default: 1
+                  example: 3
+      responses:
+        '200':
+          description: Counter added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  game:
+                    $ref: '#/components/schemas/GameDetail'
+        '404':
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# ============================================================================
+# COMPONENTS / SCHEMAS
+# ============================================================================
+
+components:
+  schemas:
+    CardResponse:
+      type: object
+      description: Card definition
+      properties:
+        code:
+          type: string
+          example: "01001a"
+          description: Unique card identifier
+        name:
+          type: string
+          example: "Spider-Man"
+          description: Card display name
+        text:
+          type: string
+          nullable: true
+          example: "Hero - Can spend [1 resource], flip to alter ego"
+          description: Card text (for accessibility)
+
+    DeckSummary:
+      type: object
+      description: Brief deck information
+      properties:
+        id:
+          type: string
+          description: Deck identifier
+        name:
+          type: string
+          example: "Spider-Man Control"
+        card_count:
+          type: integer
+          example: 40
+          description: Total number of cards (with quantities)
+        source_url:
+          type: string
+          nullable: true
+          description: Optional MarvelCDB link
+
+    DeckDetail:
+      type: object
+      description: Complete deck information
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        cards:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              quantity:
+                type: integer
+        card_count:
+          type: integer
+        source_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    Position:
+      type: object
+      description: 2D coordinates on play table
+      properties:
+        x:
+          type: integer
+          description: X coordinate
+        y:
+          type: integer
+          description: Y coordinate
+
+    CardInPlay:
+      type: object
+      description: Card on the play table with visual state
+      properties:
+        code:
+          type: string
+        position:
+          $ref: '#/components/schemas/Position'
+        rotated:
+          type: boolean
+          description: Card rotation state (visual only)
+        flipped:
+          type: boolean
+          description: Card face-down state (visual only)
+        counters:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            damage: 3
+            threat: 1
+
+    PlayerZones:
+      type: object
+      description: One player's card collection
+      properties:
+        player_name:
+          type: string
+          example: "Alice"
+        deck:
+          type: array
+          items:
+            type: string
+          description: Cards in deck (in order)
+        hand:
+          type: array
+          items:
+            type: string
+          description: Cards in hand
+        discard:
+          type: array
+          items:
+            type: string
+          description: Cards in discard pile
+        removed:
+          type: array
+          items:
+            type: string
+          description: Cards removed from game
+
+    GameState:
+      type: object
+      description: Complete game snapshot
+      properties:
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlayerZones'
+        play_area:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardInPlay'
+
+    GameSummary:
+      type: object
+      description: Brief game information
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        players:
+          type: array
+          items:
+            type: string
+          description: List of player names
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    GameDetail:
+      type: object
+      description: Complete game details
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        deck_ids:
+          type: array
+          items:
+            type: string
+          description: Deck IDs used in game
+        state:
+          $ref: '#/components/schemas/GameState'
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      description: Error response
+      properties:
+        error:
+          type: string
+          description: Error message

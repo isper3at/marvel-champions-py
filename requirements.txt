@@ -30,4 +30,4 @@ flask-restx==1.3.2
 # Testing
 pytest==7.4.2
 pytest-cov==4.1.0
-mongomock==4.3.5
+mongomock==4.3.0
