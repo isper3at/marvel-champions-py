@@ -6,7 +6,7 @@ import logging
 from flask import request, g
 from functools import wraps
 from typing import Callable
-from src.logging_config import audit_logger
+from src.logging_conf import audit_logger
 
 
 logger = logging.getLogger(__name__)

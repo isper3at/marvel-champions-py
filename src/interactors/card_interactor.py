@@ -1,11 +1,20 @@
 """
 Card Interactor - Business logic for card operations.
 
-Responsibilities:
-- Import cards from MarvelCDB
-- Manage card data in repository
-- Download and store card images
-- Search and retrieve cards
+This module implements the Interactor layer from the EBI (Entities-Boundaries-Interactors)
+architecture. It coordinates card operations across multiple boundaries:
+- Repository: Persistent storage of card entities
+- MarvelCDB Gateway: Fetching authoritative card data from external API
+- Image Storage: Managing card image files
+
+The CardInteractor contains all business logic for:
+- Importing new cards from MarvelCDB
+- Caching and deduplication (avoiding redundant imports)
+- Managing card images alongside metadata
+- Searching and retrieving cards
+
+All operations work with Card entities (immutable data) and never modify them directly.
+Each operation returns new entities or lists, maintaining functional purity.
 """
 
 from typing import Optional, List
@@ -16,7 +25,26 @@ from src.entities import Card
 
 
 class CardInteractor:
-    """Business logic for card operations"""
+    """
+    Coordinates card operations across repository and gateway boundaries.
+    
+    CardInteractor is the central coordinator for all card-related operations.
+    It determines when to fetch from the external MarvelCDB API, when to use
+    the local cache, and when to download/manage images.
+    
+    The key principle: CardInteractor is "smart" about minimizing external
+    API calls and redundant work, while EntityCard is "dumb" and just holds data.
+    
+    Attributes:
+        card_repo: Repository for persisting cards
+        marvelcdb: Gateway to MarvelCDB API
+        image_storage: Interface for storing/retrieving card images
+    
+    Example Usage:
+        >>> interactor = CardInteractor(repo, gateway, storage)
+        >>> card = interactor.import_card_from_marvelcdb('01001a')
+        >>> path = interactor.get_card_image_path('01001a')
+    """
     
     def __init__(
         self,
@@ -30,17 +58,30 @@ class CardInteractor:
     
     def import_card_from_marvelcdb(self, card_code: str) -> Card:
         """
-        Import a card from MarvelCDB, including image.
+        Import a card from MarvelCDB, including downloading its image.
         
-        Steps:
-        1. Check if card already exists
-        2. Fetch card info from MarvelCDB
-        3. Create Card entity
-        4. Save to repository
-        5. Download and save image
+        This operation is idempotent - calling it multiple times with the same
+        card_code will return the same card without redundant API calls.
         
+        Process:
+        1. Check if card exists in local repository
+        2. If exists: ensure image is present, return existing card
+        3. If not: Fetch card info from MarvelCDB API
+        4. Create Card entity and save to repository
+        5. Download and cache card image
+        
+        Args:
+            card_code: MarvelCDB card code (e.g., "01001a")
+            
         Returns:
-            Imported Card entity
+            Card entity from the repository
+            
+        Raises:
+            Exception: If MarvelCDB API fails or card not found
+            
+        Example:
+            >>> card = interactor.import_card_from_marvelcdb('01001a')
+            >>> assert card.code == '01001a'
         """
         # Check if already exists
         existing = self.card_repo.find_by_code(card_code)
@@ -70,13 +111,26 @@ class CardInteractor:
     
     def import_cards_bulk(self, card_codes: List[str]) -> List[Card]:
         """
-        Import multiple cards efficiently.
+        Import multiple cards efficiently, minimizing API calls.
+        
+        This operation:
+        - Filters out cards already in repository
+        - Imports only new cards
+        - Returns all requested cards (existing + newly imported)
+        
+        Handles per-card failures gracefully - if one card import fails,
+        continues with others and returns what was successfully imported.
         
         Args:
             card_codes: List of card codes to import
             
         Returns:
-            List of imported Card entities
+            List of Card entities (may be less than input if some failed)
+            
+        Example:
+            >>> codes = ['01001a', '01002b', '01003c']
+            >>> cards = interactor.import_cards_bulk(codes)
+            >>> assert len(cards) <= len(codes)
         """
         # Filter out cards we already have
         existing_codes = set()
@@ -103,19 +157,77 @@ class CardInteractor:
         return self.card_repo.find_by_codes(card_codes)
     
     def get_card(self, card_code: str) -> Optional[Card]:
-        """Get a card by code"""
+        """
+        Retrieve a card by its code from the repository.
+        
+        This is a simple lookup that returns the card if it's been previously
+        imported, or None if it hasn't been imported yet.
+        
+        Args:
+            card_code: Card identifier to look up
+            
+        Returns:
+            Card entity or None if not found
+            
+        Example:
+            >>> card = interactor.get_card('01001a')
+            >>> if card:
+            ...     print(f"Found: {card.name}")
+        """
         return self.card_repo.find_by_code(card_code)
     
     def get_cards(self, card_codes: List[str]) -> List[Card]:
-        """Get multiple cards by codes"""
+        """
+        Retrieve multiple cards by their codes.
+        
+        Args:
+            card_codes: List of card codes to retrieve
+            
+        Returns:
+            List of Card entities (may be less than input if some not found)
+            
+        Example:
+            >>> cards = interactor.get_cards(['01001a', '01002b'])
+            >>> assert len(cards) <= 2
+        """
         return self.card_repo.find_by_codes(card_codes)
     
     def search_cards(self, name: str) -> List[Card]:
-        """Search cards by name"""
+        """
+        Search for cards by name substring.
+        
+        Performs a case-insensitive search against card names in the repository.
+        
+        Args:
+            name: Name or partial name to search for
+            
+        Returns:
+            List of matching Card entities
+            
+        Example:
+            >>> cards = interactor.search_cards('Spider')
+            >>> # Returns all cards with 'Spider' in name
+        """
         return self.card_repo.search_by_name(name)
     
     def get_card_image_path(self, card_code: str) -> Optional[str]:
-        """Get path to card image, downloading if needed"""
+        """
+        Get the file path to a card's image, downloading if necessary.
+        
+        If image is already cached, returns path immediately. If not cached,
+        attempts to download it from MarvelCDB. If download fails, returns None.
+        
+        Args:
+            card_code: Card to get image for
+            
+        Returns:
+            File path to image, or None if image unavailable
+            
+        Example:
+            >>> path = interactor.get_card_image_path('01001a')
+            >>> if path:
+            ...     display_image(path)
+        """
         path = self.image_storage.get_image_path(card_code)
         if path:
             return path
@@ -128,7 +240,20 @@ class CardInteractor:
             return None
     
     def _download_card_image(self, card_code: str):
-        """Internal method to download and save card image"""
+        """
+        Internal helper to download and cache a card's image.
+        
+        This method:
+        - Skips if image already cached
+        - Fetches image URL from MarvelCDB
+        - Downloads image data
+        - Saves to image storage
+        
+        Failures are logged but don't raise exceptions (graceful degradation).
+        
+        Args:
+            card_code: Card whose image to download
+        """
         if self.image_storage.image_exists(card_code):
             return  # Already have it
         
