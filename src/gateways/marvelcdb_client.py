@@ -214,5 +214,21 @@ class MarvelCDBClient(MarvelCDBGateway):
             if part and part.isdigit():
                 return part
         return parts[-1] if parts else None
+    
+    # Additional methods to satisfy the MarvelCDBGateway interface
+    def get_card_data(self, card_code: str) -> Dict[str, Any]:
+        """Get card data (alias for get_card_info)"""
+        return self.get_card_info(card_code)
+    
+    def get_deck_details(self, deck_id: str) -> Dict[str, Any]:
+        """Get deck details (returns card list and deck id)"""
+        cards = self.get_deck_cards(deck_id)
+        return {'cards': cards, 'id': deck_id}
+    
+    def search_cards(self, query: str) -> List[Dict[str, Any]]:
+        """Search for cards by query"""
+        # MarvelCDB doesn't have a public search API, return empty list
+        return []
+
 
 

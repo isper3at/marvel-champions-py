@@ -1,0 +1,72 @@
+/* Player Hand styling */
+
+.player-hand {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  gap: 10px;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 15px;
+  border-top: 3px solid #daa520;
+}
+
+.hand-label {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #daa520;
+}
+
+.hand-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: -20px;
+  height: 200px;
+  perspective: 1000px;
+}
+
+.hand-card-wrapper {
+  display: flex;
+  align-items: flex-end;
+  transform-origin: center bottom;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin: 0 -15px;
+}
+
+.hand-card-wrapper:hover {
+  transform: translateY(-30px) scale(1.05) !important;
+  z-index: 1000 !important;
+}
+
+.empty-hand {
+  margin: 0;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+@media (max-width: 1024px) {
+  .hand-container {
+    height: 170px;
+    gap: -10px;
+  }
+
+  .hand-card-wrapper {
+    margin: 0 -10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .hand-container {
+    height: 140px;
+  }
+
+  .hand-label {
+    font-size: 14px;
+  }
+
+  .hand-card-wrapper {
+    margin: 0 -8px;
+  }
+}

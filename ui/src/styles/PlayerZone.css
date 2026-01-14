@@ -1,0 +1,137 @@
+/* Player Zone styling */
+
+.player-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+}
+
+.player-zone-header {
+  margin: 0;
+  padding: 0 10px;
+}
+
+.player-zone-header h3 {
+  margin: 0;
+  color: #daa520;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.player-zones-container {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.zone-section {
+  flex: 1;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(218, 165, 32, 0.2);
+}
+
+.zone-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: bold;
+  color: #daa520;
+  text-transform: uppercase;
+}
+
+.zone-content {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-content: flex-start;
+}
+
+.cards-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  width: 100%;
+}
+
+.card-in-zone {
+  display: flex;
+}
+
+.empty-zone {
+  margin: 0;
+  font-size: 11px;
+  color: #666;
+  font-style: italic;
+}
+
+.deck-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding: 8px;
+  border-top: 1px solid rgba(218, 165, 32, 0.2);
+}
+
+.deck-button {
+  padding: 8px 16px;
+  background-color: #daa520;
+  color: #222;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.deck-button:hover {
+  background-color: #ffd700;
+  transform: scale(1.05);
+}
+
+.deck-button:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 1024px) {
+  .zone-section {
+    min-width: 120px;
+    padding: 6px;
+  }
+
+  .zone-title {
+    font-size: 11px;
+  }
+
+  .deck-button {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 768px) {
+  .player-zones-container {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .zone-section {
+    min-width: auto;
+  }
+
+  .deck-button {
+    padding: 6px 12px;
+    font-size: 10px;
+  }
+}

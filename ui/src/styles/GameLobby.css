@@ -1,0 +1,257 @@
+/* Game Lobby styling */
+
+.game-lobby {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  padding: 20px;
+}
+
+.lobby-container {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  max-width: 600px;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  border: 2px solid #daa520;
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: 0 0 30px rgba(218, 165, 32, 0.3);
+}
+
+.lobby-title {
+  font-size: 48px;
+  font-weight: bold;
+  color: #daa520;
+  text-align: center;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.lobby-subtitle {
+  font-size: 20px;
+  color: #aaa;
+  text-align: center;
+  margin: 0;
+  font-style: italic;
+}
+
+.player-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.player-input-section label {
+  font-size: 14px;
+  font-weight: bold;
+  color: #daa520;
+  text-transform: uppercase;
+}
+
+.player-input-section input {
+  padding: 12px 16px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(218, 165, 32, 0.5);
+  border-radius: 6px;
+  color: white;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.player-input-section input:focus {
+  outline: none;
+  border-color: #daa520;
+  box-shadow: 0 0 10px rgba(218, 165, 32, 0.3);
+}
+
+.player-input-section input::placeholder {
+  color: #666;
+}
+
+.games-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.games-section h2 {
+  font-size: 18px;
+  color: #daa520;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.loading,
+.no-games {
+  text-align: center;
+  color: #aaa;
+  font-style: italic;
+  padding: 20px;
+  margin: 0;
+}
+
+.error-message {
+  text-align: center;
+  color: #ff6b6b;
+  background-color: rgba(255, 107, 107, 0.1);
+  border: 1px solid #ff6b6b;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.games-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.game-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(218, 165, 32, 0.2);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.game-item:hover {
+  background-color: rgba(218, 165, 32, 0.1);
+  border-color: #daa520;
+}
+
+.game-info {
+  flex: 1;
+}
+
+.game-name {
+  margin: 0 0 5px 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #daa520;
+}
+
+.game-status,
+.game-players {
+  margin: 2px 0;
+  font-size: 12px;
+  color: #aaa;
+}
+
+.status-active {
+  color: #4ade80;
+  font-weight: bold;
+}
+
+.status-paused {
+  color: #fbbf24;
+  font-weight: bold;
+}
+
+.status-finished {
+  color: #f87171;
+  font-weight: bold;
+}
+
+.join-button {
+  padding: 10px 20px;
+  background-color: #daa520;
+  color: #222;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 14px;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.join-button:hover:not(:disabled) {
+  background-color: #ffd700;
+  transform: scale(1.05);
+}
+
+.join-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.join-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.create-game-section {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  border-top: 2px solid rgba(218, 165, 32, 0.3);
+}
+
+.create-button {
+  padding: 14px 28px;
+  background-color: #4ade80;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 16px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-button:hover:not(:disabled) {
+  background-color: #22c55e;
+  transform: scale(1.05);
+}
+
+.create-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.create-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .lobby-container {
+    padding: 30px 20px;
+    gap: 20px;
+  }
+
+  .lobby-title {
+    font-size: 36px;
+  }
+
+  .lobby-subtitle {
+    font-size: 16px;
+  }
+
+  .games-list {
+    max-height: 300px;
+  }
+
+  .game-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .join-button {
+    width: 100%;
+    padding: 12px;
+  }
+}

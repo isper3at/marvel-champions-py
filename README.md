@@ -47,7 +47,7 @@ marvel-champions-ebi/
 
 4. **Run the application**
    ```bash
-   python app.py
+   python src/app.py
    ```
 
 ## Architecture Principles

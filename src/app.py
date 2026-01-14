@@ -1,350 +1,301 @@
 """
-Game Controller - REST API endpoints for game operations.
+Marvel Champions REST API - Main Entry Point
 
-Endpoints:
-- GET /api/games - Get all games
-- GET /api/games/recent - Get recent games
-- GET /api/games/<id> - Get game by ID
-- POST /api/games - Create new game
-- DELETE /api/games/<id> - Delete game
-- POST /api/games/<id>/draw - Draw card for player
-- POST /api/games/<id>/shuffle - Shuffle discard into deck
-- POST /api/games/<id>/play - Play card to table
-- POST /api/games/<id>/move - Move card on table
-- POST /api/games/<id>/rotate - Toggle card rotation
-- POST /api/games/<id>/counter - Add counter to card
+Following EBI (Entities-Boundaries-Interactors) Architecture:
+
+ENTITIES: Card, Deck, Game, Player, GameState
+├─ Immutable domain objects
+├─ No dependencies
+└─ Single responsibility
+
+BOUNDARIES: 
+├─ Repositories (MongoDB): CardRepository, DeckRepository, GameRepository
+├─ Gateways (External): MarvelCDBGateway, MarvelCDBClient
+├─ Storage: ImageStorage, LocalImageStorage
+└─ Middleware: Request logging, Audit middleware
+
+INTERACTORS (Business Logic):
+├─ CardInteractor: Card import, caching, image management
+├─ DeckInteractor: Deck CRUD, MarvelCDB import
+└─ GameInteractor: Game state, player actions, card movement
+
+CONTROLLERS (REST Endpoints):
+└─ Blueprint routes → Interactor methods → Return JSON
 """
 
-from flask import jsonify, request
-from src.controllers import game_bp
-from src.middleware import audit_endpoint
-from src.interactors import GameInteractor
-from src.entities import Position
-import logging
+import sys
+import os
+from pathlib import Path
 
+# Ensure imports work from project root
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+import logging
+from flask import Flask, jsonify
+from flask_cors import CORS
+from pymongo import MongoClient
+
+# Configure logging first
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-_game_interactor: GameInteractor = None
 
-
-def init_game_controller(game_interactor: GameInteractor):
-    """Initialize controller with interactor"""
-    global _game_interactor
-    _game_interactor = game_interactor
-
-
-@game_bp.route('', methods=['GET'])
-@audit_endpoint('list_games')
-def list_games():
-    """Get all games"""
-    try:
-        logger.info("Fetching all games")
+def create_app(config_override=None):
+    """
+    Application Factory: Creates and configures Flask app
+    
+    Args:
+        config_override: Optional config dict for testing
         
-        games = _game_interactor.get_all_games()
-        
-        return jsonify({
-            'games': [
-                {
-                    'id': game.id,
-                    'name': game.name,
-                    'players': [p.player_name for p in game.state.players],
-                    'created_at': game.created_at.isoformat() if game.created_at else None
-                }
-                for game in games
-            ],
-            'count': len(games)
-        })
-        
-    except Exception as e:
-        logger.error(f"Error listing games: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-@game_bp.route('/recent', methods=['GET'])
-@audit_endpoint('list_recent_games')
-def list_recent_games():
-    """Get recent games"""
-    limit = request.args.get('limit', 10, type=int)
+    Returns:
+        Configured Flask application ready to run
+    """
+    
+    logger.info("=" * 80)
+    logger.info("MARVEL CHAMPIONS API - Starting Application")
+    logger.info("=" * 80)
+    
+    # ========================================================================
+    # 1. CONFIGURATION LOADING
+    # ========================================================================
+    from src.config import load_config
     
     try:
-        logger.info(f"Fetching {limit} recent games")
-        
-        games = _game_interactor.get_recent_games(limit)
-        
-        return jsonify({
-            'games': [
-                {
-                    'id': game.id,
-                    'name': game.name,
-                    'players': [p.player_name for p in game.state.players],
-                    'created_at': game.created_at.isoformat() if game.created_at else None
-                }
-                for game in games
-            ],
-            'count': len(games)
-        })
-        
+        config = load_config()
+        logger.info(f"✓ Configuration loaded")
+        logger.info(f"  - Database: {config.mongo.database}")
+        logger.info(f"  - Host: {config.host}:{config.port}")
     except Exception as e:
-        logger.error(f"Error fetching recent games: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-@game_bp.route('/<game_id>', methods=['GET'])
-@audit_endpoint('get_game')
-def get_game(game_id: str):
-    """Get full game state"""
+        logger.error(f"✗ Failed to load configuration: {e}")
+        raise
+    
+    # ========================================================================
+    # 2. CREATE FLASK APP
+    # ========================================================================
+    app = Flask(__name__)
+    app.config['SECRET_KEY'] = config.secret_key
+    app.config['DEBUG'] = config.debug
+    CORS(app)
+    logger.info("✓ Flask app created")
+    
+    # ========================================================================
+    # 3. INITIALIZE MONGODB
+    # ========================================================================
     try:
-        logger.info(f"Fetching game: {game_id}")
+        mongo_client = MongoClient(
+            config.mongo.connection_string,
+            serverSelectionTimeoutMS=5000
+        )
+        # Test connection
+        mongo_client.admin.command('ping')
+        db = mongo_client[config.mongo.database]
+        logger.info(f"✓ MongoDB connected to '{config.mongo.database}'")
+    except Exception as e:
+        logger.error(f"✗ MongoDB connection failed: {e}")
+        raise
+    
+    # ========================================================================
+    # 4. INITIALIZE REPOSITORIES (Boundaries - Data Access)
+    # ========================================================================
+    from src.repositories import (
+        MongoCardRepository,
+        MongoDeckRepository,
+        MongoGameRepository
+    )
+    
+    try:
+        card_repo = MongoCardRepository(db)
+        deck_repo = MongoDeckRepository(db)
+        game_repo = MongoGameRepository(db)
+        logger.info("✓ Repositories initialized")
+        logger.info("  - MongoCardRepository")
+        logger.info("  - MongoDeckRepository")
+        logger.info("  - MongoGameRepository")
+    except Exception as e:
+        logger.error(f"✗ Repository initialization failed: {e}")
+        raise
+    
+    # ========================================================================
+    # 5. INITIALIZE GATEWAYS (Boundaries - External Services)
+    # ========================================================================
+    from src.gateways import MarvelCDBClient, LocalImageStorage
+    
+    try:
+        marvelcdb_gateway = MarvelCDBClient(config.marvelcdb)
+        image_storage = LocalImageStorage(config.image_storage)
+        logger.info("✓ Gateways initialized")
+        logger.info(f"  - MarvelCDBClient ({config.marvelcdb.base_url})")
+        logger.info(f"  - LocalImageStorage ({config.image_storage.storage_path})")
+    except Exception as e:
+        logger.error(f"✗ Gateway initialization failed: {e}")
+        raise
+    
+    # ========================================================================
+    # 6. INITIALIZE INTERACTORS (Business Logic)
+    # ========================================================================
+    from src.interactors import (
+        CardInteractor,
+        DeckInteractor,
+        GameInteractor
+    )
+    
+    try:
+        card_interactor = CardInteractor(
+            card_repo,
+            marvelcdb_gateway,
+            image_storage
+        )
+        deck_interactor = DeckInteractor(
+            deck_repo,
+            card_interactor,
+            marvelcdb_gateway
+        )
+        game_interactor = GameInteractor(game_repo, card_repo)
         
-        game = _game_interactor.get_game(game_id)
+        logger.info("✓ Interactors initialized")
+        logger.info("  - CardInteractor")
+        logger.info("  - DeckInteractor")
+        logger.info("  - GameInteractor")
+    except Exception as e:
+        logger.error(f"✗ Interactor initialization failed: {e}")
+        raise
+    
+    # ========================================================================
+    # 7. INITIALIZE CONTROLLERS (REST Endpoints)
+    # ========================================================================
+    from src.controllers import card_bp, deck_bp, game_bp
+    import src.controllers.card_controller as card_controller
+    import src.controllers.deck_controller as deck_controller
+    import src.controllers.game_controller as game_controller
+    
+    try:
+        # Wire up controllers with interactors
+        card_controller.init_card_controller(card_interactor)
+        deck_controller.init_deck_controller(deck_interactor)
+        game_controller.init_game_controller(game_interactor)
         
-        if not game:
-            return jsonify({'error': 'Game not found'}), 404
+        # Register blueprints
+        app.register_blueprint(card_bp)
+        app.register_blueprint(deck_bp)
+        app.register_blueprint(game_bp)
         
+        logger.info("✓ Controllers initialized and blueprints registered")
+        logger.info("  - /api/cards")
+        logger.info("  - /api/decks")
+        logger.info("  - /api/games")
+    except Exception as e:
+        logger.error(f"✗ Controller initialization failed: {e}")
+        raise
+    
+    # ========================================================================
+    # 8. SETUP MIDDLEWARE
+    # ========================================================================
+    from src.middleware import setup_request_logging
+    from src.api_documentation import setup_api_documentation
+    from src.swagger_ui import init_swagger_ui
+    
+    try:
+        setup_request_logging(app)
+        setup_api_documentation(app)
+        init_swagger_ui(app)
+        logger.info("✓ Middleware and documentation initialized")
+        logger.info("  - Request logging")
+        logger.info("  - API documentation")
+        logger.info("  - Swagger UI")
+    except Exception as e:
+        logger.error(f"✗ Middleware initialization failed: {e}")
+        raise
+    
+    # ========================================================================
+    # 9. DEFINE HEALTH CHECK & ROOT ENDPOINTS
+    # ========================================================================
+    @app.route('/health', methods=['GET'])
+    def health_check():
+        """Health check endpoint for monitoring"""
         return jsonify({
-            'id': game.id,
-            'name': game.name,
-            'deck_ids': list(game.deck_ids),
-            'state': {
-                'players': [
-                    {
-                        'player_name': p.player_name,
-                        'deck_size': len(p.deck),
-                        'hand_size': len(p.hand),
-                        'discard_size': len(p.discard),
-                        'hand': list(p.hand)  # Reveal hand to client
-                    }
-                    for p in game.state.players
-                ],
-                'play_area': [
-                    {
-                        'code': card.code,
-                        'position': {'x': card.position.x, 'y': card.position.y},
-                        'rotated': card.rotated,
-                        'flipped': card.flipped,
-                        'counters': card.counters
-                    }
-                    for card in game.state.play_area
-                ]
+            'status': 'ok',
+            'service': 'marvel-champions-api',
+            'version': '1.0.0'
+        })
+    
+    @app.route('/', methods=['GET'])
+    def index():
+        """API root endpoint"""
+        return jsonify({
+            'service': 'marvel-champions-api',
+            'version': '1.0.0',
+            'docs': '/api/docs',
+            'health': '/health',
+            'endpoints': {
+                'cards': '/api/cards',
+                'decks': '/api/decks',
+                'games': '/api/games'
             }
         })
-        
-    except Exception as e:
-        logger.error(f"Error fetching game {game_id}: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-@game_bp.route('', methods=['POST'])
-@audit_endpoint('create_game')
-def create_game():
-    """Create a new game"""
-    data = request.get_json()
     
-    if not data or 'name' not in data or 'deck_ids' not in data or 'player_names' not in data:
-        return jsonify({'error': 'name, deck_ids, and player_names are required'}), 400
+    # ========================================================================
+    # 10. ERROR HANDLERS
+    # ========================================================================
+    @app.errorhandler(404)
+    def not_found(error):
+        """Handle 404 errors"""
+        return jsonify({'error': 'Not found', 'status': 404}), 404
     
-    try:
-        logger.info(f"Creating game: {data['name']}")
-        
-        game = _game_interactor.create_game(
-            data['name'],
-            data['deck_ids'],
-            data['player_names']
-        )
-        
-        logger.info(f"Created game: {game.id}")
-        
+    @app.errorhandler(500)
+    def internal_error(error):
+        """Handle 500 errors"""
+        logger.error(f"Internal server error: {error}", exc_info=True)
         return jsonify({
-            'success': True,
-            'game': {
-                'id': game.id,
-                'name': game.name,
-                'players': [p.player_name for p in game.state.players]
-            }
-        }), 201
-        
-    except Exception as e:
-        logger.error(f"Error creating game: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-@game_bp.route('/<game_id>', methods=['DELETE'])
-@audit_endpoint('delete_game')
-def delete_game(game_id: str):
-    """Delete a game"""
-    try:
-        logger.info(f"Deleting game: {game_id}")
-        
-        success = _game_interactor.delete_game(game_id)
-        
-        if not success:
-            return jsonify({'error': 'Game not found'}), 404
-        
-        logger.info(f"Deleted game: {game_id}")
-        
-        return jsonify({'success': True})
-        
-    except Exception as e:
-        logger.error(f"Error deleting game {game_id}: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-@game_bp.route('/<game_id>/draw', methods=['POST'])
-@audit_endpoint('draw_card')
-def draw_card(game_id: str):
-    """Draw a card for a player"""
-    data = request.get_json()
+            'error': 'Internal server error',
+            'status': 500
+        }), 500
     
-    if not data or 'player_name' not in data:
-        return jsonify({'error': 'player_name is required'}), 400
+    # Shutdown endpoint for graceful server termination
+    @app.route('/shutdown', methods=['POST'])
+    def shutdown():
+        """Gracefully shutdown the server"""
+        logger.info("=" * 80)
+        logger.info("SHUTDOWN REQUESTED - Terminating server gracefully")
+        logger.info("=" * 80)
+        
+        def do_shutdown():
+            import time
+            time.sleep(0.5)  # Give time to send response
+            os.kill(os.getpid(), 15)  # Send SIGTERM to self
+        
+        from threading import Thread
+        shutdown_thread = Thread(target=do_shutdown)
+        shutdown_thread.daemon = True
+        shutdown_thread.start()
+        
+        return jsonify({'status': 'shutdown initiated'}), 200
     
-    try:
-        logger.info(f"Drawing card for {data['player_name']} in game {game_id}")
-        
-        game = _game_interactor.draw_card(game_id, data['player_name'])
-        
-        if not game:
-            return jsonify({'error': 'Game not found'}), 404
-        
-        return jsonify({'success': True})
-        
-    except Exception as e:
-        logger.error(f"Error drawing card: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+    logger.info("=" * 80)
+    logger.info("✓ APPLICATION INITIALIZED SUCCESSFULLY")
+    logger.info("=" * 80)
+    
+    return app
 
 
-@game_bp.route('/<game_id>/shuffle', methods=['POST'])
-@audit_endpoint('shuffle_deck')
-def shuffle_deck(game_id: str):
-    """Shuffle discard pile into deck"""
-    data = request.get_json()
+if __name__ == '__main__':
+    from src.config import load_config
     
-    if not data or 'player_name' not in data:
-        return jsonify({'error': 'player_name is required'}), 400
+    config = load_config()
+    app = create_app()
     
-    try:
-        logger.info(f"Shuffling deck for {data['player_name']} in game {game_id}")
-        
-        game = _game_interactor.shuffle_discard_into_deck(game_id, data['player_name'])
-        
-        if not game:
-            return jsonify({'error': 'Game not found'}), 404
-        
-        return jsonify({'success': True})
-        
-    except Exception as e:
-        logger.error(f"Error shuffling deck: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-@game_bp.route('/<game_id>/play', methods=['POST'])
-@audit_endpoint('play_card')
-def play_card(game_id: str):
-    """Play a card from hand to table"""
-    data = request.get_json()
+    logger.info(f"\n🚀 Starting server on {config.host}:{config.port}\n")
+    logger.info("Visit:")
+    logger.info(f"  - API Docs: http://{config.host}:{config.port}/api/docs")
+    logger.info(f"  - API Root: http://{config.host}:{config.port}/")
+    logger.info(f"  - Health:   http://{config.host}:{config.port}/health")
+    logger.info("\nPress Ctrl+C to stop\n")
     
-    required = ['player_name', 'card_code', 'x', 'y']
-    if not data or not all(k in data for k in required):
-        return jsonify({'error': f'Required fields: {", ".join(required)}'}), 400
-    
-    try:
-        logger.info(f"Playing card {data['card_code']} for {data['player_name']}")
-        
-        position = Position(x=data['x'], y=data['y'])
-        
-        game = _game_interactor.play_card_to_table(
-            game_id,
-            data['player_name'],
-            data['card_code'],
-            position
-        )
-        
-        if not game:
-            return jsonify({'error': 'Game not found or card not in hand'}), 404
-        
-        return jsonify({'success': True})
-        
-    except Exception as e:
-        logger.error(f"Error playing card: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-@game_bp.route('/<game_id>/move', methods=['POST'])
-@audit_endpoint('move_card')
-def move_card(game_id: str):
-    """Move a card on the table"""
-    data = request.get_json()
-    
-    required = ['card_code', 'x', 'y']
-    if not data or not all(k in data for k in required):
-        return jsonify({'error': f'Required fields: {", ".join(required)}'}), 400
-    
-    try:
-        logger.debug(f"Moving card {data['card_code']} to ({data['x']}, {data['y']})")
-        
-        position = Position(x=data['x'], y=data['y'])
-        
-        game = _game_interactor.move_card_on_table(game_id, data['card_code'], position)
-        
-        if not game:
-            return jsonify({'error': 'Game not found'}), 404
-        
-        return jsonify({'success': True})
-        
-    except Exception as e:
-        logger.error(f"Error moving card: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-@game_bp.route('/<game_id>/rotate', methods=['POST'])
-@audit_endpoint('rotate_card')
-def rotate_card(game_id: str):
-    """Toggle card rotation (exhaust/ready)"""
-    data = request.get_json()
-    
-    if not data or 'card_code' not in data:
-        return jsonify({'error': 'card_code is required'}), 400
-    
-    try:
-        logger.debug(f"Rotating card {data['card_code']}")
-        
-        game = _game_interactor.toggle_card_rotation(game_id, data['card_code'])
-        
-        if not game:
-            return jsonify({'error': 'Game not found'}), 404
-        
-        return jsonify({'success': True})
-        
-    except Exception as e:
-        logger.error(f"Error rotating card: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-@game_bp.route('/<game_id>/counter', methods=['POST'])
-@audit_endpoint('add_counter')
-def add_counter(game_id: str):
-    """Add counters to a card"""
-    data = request.get_json()
-    
-    required = ['card_code', 'counter_type', 'amount']
-    if not data or not all(k in data for k in required):
-        return jsonify({'error': f'Required fields: {", ".join(required)}'}), 400
-    
-    try:
-        logger.debug(f"Adding {data['amount']} {data['counter_type']} to {data['card_code']}")
-        
-        game = _game_interactor.add_counter_to_card(
-            game_id,
-            data['card_code'],
-            data['counter_type'],
-            data['amount']
-        )
-        
-        if not game:
-            return jsonify({'error': 'Game not found'}), 404
-        
-        return jsonify({'success': True})
-        
-    except Exception as e:
-        logger.error(f"Error adding counter: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+    app.run(
+        host=config.host,
+        port=config.port,
+        debug=config.debug,
+        use_reloader=config.debug
+    )
