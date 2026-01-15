@@ -108,41 +108,36 @@ class MongoGameRepository(GameRepository):
     
     def _to_document(self, game: Game) -> dict:
         """Convert Game entity to MongoDB document"""
-        
-        # Convert players
-        players = [
-            {
-                'player_name': p.player_name,
-                'deck': list(p.deck),
-                'hand': list(p.hand),
-                'discard': list(p.discard),
-                'removed': list(p.removed)
-            }
-            for p in game.state.players
-        ]
-        
-        # Convert play area
-        play_area = [
-            {
-                'code': c.code,
-                'position': {'x': c.position.x, 'y': c.position.y},
-                'rotated': c.rotated,
-                'flipped': c.flipped,
-                'counters': c.counters
-            }
-            for c in game.state.play_area
-        ]
-        
-        # Build document
+    
         doc = {
             'name': game.name,
-            'deck_ids': list(game.deck_ids),
-            'state': {
-                'players': players,
-                'play_area': play_area
-            },
+            'status': game.status.value,  # NEW
+            'host': game.host,  # NEW
             'created_at': game.created_at or datetime.utcnow()
         }
+        
+        # Lobby fields (when status = LOBBY)
+        if game.lobby_players:
+            doc['lobby_players'] = [
+                {
+                    'username': p.username,
+                    'deck_id': p.deck_id,
+                    'is_ready': p.is_ready,
+                    'is_host': p.is_host
+                }
+                for p in game.lobby_players
+            ]
+        
+        if game.encounter_deck_id:
+            doc['encounter_deck_id'] = game.encounter_deck_id
+        
+        # Game fields (when status = IN_PROGRESS)
+        if game.deck_ids:
+            doc['deck_ids'] = list(game.deck_ids)
+        
+        if game.state:
+            # Convert state (existing code)
+            ...
         
         if game.id:
             doc['_id'] = ObjectId(game.id)

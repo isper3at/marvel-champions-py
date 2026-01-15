@@ -10,4 +10,3 @@ export { PlayerZone } from './PlayerZone';
 export { OpponentZone } from './OpponentZone';
 export { DeckView } from './DeckView';
 export { GameBoard } from './GameBoard';
-export { GameLobby } from './GameLobby';

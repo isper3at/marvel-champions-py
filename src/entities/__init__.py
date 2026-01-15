@@ -1,9 +1,11 @@
 from .card import Card
 from .deck import Deck, DeckCard
-from .game import Game, GameState, CardInPlay, Position, PlayerZones
+from .lobby import GameStatus, LobbyPlayer
+from .game import Game, GameState, PlayerZones, CardInPlay, Position
 
 __all__ = [
     'Card',
     'Deck', 'DeckCard',
-    'Game', 'GameState', 'CardInPlay', 'Position', 'PlayerZones'
+    'GameStatus', 'LobbyPlayer',
+    'Game', 'GameState', 'PlayerZones', 'CardInPlay', 'Position'
 ]

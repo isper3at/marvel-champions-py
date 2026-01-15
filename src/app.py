@@ -139,7 +139,8 @@ def create_app(config_override=None):
     from src.interactors import (
         CardInteractor,
         DeckInteractor,
-        GameInteractor
+        GameInteractor,
+        LobbyInteractor
     )
     
     try:
@@ -154,6 +155,7 @@ def create_app(config_override=None):
             marvelcdb_gateway
         )
         game_interactor = GameInteractor(game_repo, card_repo)
+        lobby_interactor = LobbyInteractor(game_repo, deck_repo)
         
         logger.info("✓ Interactors initialized")
         logger.info("  - CardInteractor")
@@ -166,21 +168,24 @@ def create_app(config_override=None):
     # ========================================================================
     # 7. INITIALIZE CONTROLLERS (REST Endpoints)
     # ========================================================================
-    from src.controllers import card_bp, deck_bp, game_bp
+    from src.controllers import card_bp, deck_bp, game_bp, lobby_bp
     import src.controllers.card_controller as card_controller
     import src.controllers.deck_controller as deck_controller
     import src.controllers.game_controller as game_controller
+    import src.controllers.lobby_controller as lobby_controller
     
     try:
         # Wire up controllers with interactors
         card_controller.init_card_controller(card_interactor)
         deck_controller.init_deck_controller(deck_interactor)
         game_controller.init_game_controller(game_interactor)
+        lobby_controller.init_lobby_controller(lobby_interactor)
         
         # Register blueprints
         app.register_blueprint(card_bp)
         app.register_blueprint(deck_bp)
         app.register_blueprint(game_bp)
+        app.register_blueprint(lobby_controller.lobby_bp)
         
         logger.info("✓ Controllers initialized and blueprints registered")
         logger.info("  - /api/cards")
