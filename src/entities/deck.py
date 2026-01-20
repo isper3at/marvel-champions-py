@@ -67,9 +67,9 @@ class Deck:
         >>> assert deck.total_cards() == 2
         >>> assert '01001a' in deck.get_card_codes()
     """
-    id: Optional[str]
+    id: str
     name: str
-    cards: tuple[DeckCard, ...]  # Immutable list of card entries
+    cards: list[DeckCard]  # Immutable list of card entries
     
     # Optional reference to where this deck came from
     source_url: Optional[str] = None  # e.g., "https://marvelcdb.com/deck/view/12345"
@@ -79,6 +79,7 @@ class Deck:
     updated_at: Optional[datetime] = None
     
     def __post_init__(self):
+        created_at = self.created_at or datetime.now
         """Validate that deck has a non-empty name."""
         if not self.name:
             raise ValueError("Deck name cannot be empty")

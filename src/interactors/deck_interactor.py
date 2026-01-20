@@ -91,91 +91,15 @@ class DeckInteractor:
             >>> assert deck.source_url  # Contains link to original
         """
         # Fetch deck cards
-        deck_cards = self.marvelcdb.get_deck_cards(deck_id)
+        deck_details = self.marvelcdb.get_deck_details(deck_id)
         
-        if not deck_cards:
+        if not deck_details:
             raise ValueError(f"No cards found for deck {deck_id}")
-        
-        # Import all cards
-        card_codes = [c['code'] for c in deck_cards]
-        self.card_interactor.import_cards_bulk(card_codes)
-        
-        # Create deck entity
-        deck = Deck(
-            id=None,
-            name=f"Imported Deck {deck_id}",  # MarvelCDB doesn't always give us the name easily
-            cards=tuple(
-                DeckCard(code=c['code'], quantity=c['quantity'])
-                for c in deck_cards
-            ),
-            source_url=f"https://marvelcdb.com/decklist/view/{deck_id}"
-        )
-        
+                
         # Save deck
-        saved_deck = self.deck_repo.save(deck)
+        saved_deck = self.deck_repo.save(deck_details)
         
         return saved_deck
-    
-    def get_user_decks_from_marvelcdb(self, session_cookie: str) -> List[dict]:
-        """
-        Retrieve list of user's decks from MarvelCDB account.
-        
-        Requires MarvelCDB session authentication. Returns metadata only
-        (id, name) without importing the full deck compositions.
-        
-        Args:
-            session_cookie: Valid MarvelCDB session cookie for authentication
-            
-        Returns:
-            List of deck metadata dicts: [{'id': '...', 'name': '...'}, ...]
-            
-        Example:
-            >>> decks = interactor.get_user_decks_from_marvelcdb(cookie)
-            >>> for deck_meta in decks:
-            ...     full_deck = interactor.import_deck_from_marvelcdb(deck_meta['id'])
-        """
-        self.marvelcdb.set_session_cookie(session_cookie)
-        return self.marvelcdb.get_user_decks()
-    
-    def create_deck(self, name: str, card_codes_with_qty: List[tuple[str, int]]) -> Deck:
-        """
-        Create a new user-created deck.
-        
-        This creates a brand new deck without importing from external source.
-        Automatically ensures all referenced cards are available.
-        
-        Args:
-            name: Display name for the deck
-            card_codes_with_qty: List of (card_code, quantity) tuples defining deck composition
-            
-        Returns:
-            Saved Deck entity
-            
-        Raises:
-            ValueError: If name is empty
-            
-        Example:
-            >>> deck = interactor.create_deck(
-            ...     'Spider-Man Control',
-            ...     [('01001a', 2), ('01002b', 1)]
-            ... )
-            >>> assert deck.total_cards() == 3
-        """
-        # Ensure all cards exist
-        card_codes = [code for code, _ in card_codes_with_qty]
-        self.card_interactor.import_cards_bulk(card_codes)
-        
-        # Create deck
-        deck = Deck(
-            id=None,
-            name=name,
-            cards=tuple(
-                DeckCard(code=code, quantity=qty)
-                for code, qty in card_codes_with_qty
-            )
-        )
-        
-        return self.deck_repo.save(deck)
     
     def get_deck(self, deck_id: str) -> Optional[Deck]:
         """

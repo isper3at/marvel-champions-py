@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
+from src.entities import Deck, Card
 
 
 class MarvelCDBGateway(ABC):
@@ -9,7 +10,7 @@ class MarvelCDBGateway(ABC):
     """
     
     @abstractmethod
-    def get_deck_details(self, deck_id: str) -> Dict[str, Any]:
+    def get_deck_details(self, deck_id: str) -> Deck:
         """
         Retrieve full deck details including card list.
         Returns raw data that will be converted to domain entities.
@@ -17,16 +18,11 @@ class MarvelCDBGateway(ABC):
         pass
     
     @abstractmethod
-    def get_card_data(self, card_code: str) -> Dict[str, Any]:
+    def get_card_data(self, card_code: str) -> Card:
         """
         Retrieve card data from MarvelCDB.
         Returns raw data that will be converted to Card entity.
         """
-        pass
-    
-    @abstractmethod
-    def get_card_image_url(self, card_code: str) -> Optional[str]:
-        """Get the image URL for a card"""
         pass
     
     @abstractmethod
