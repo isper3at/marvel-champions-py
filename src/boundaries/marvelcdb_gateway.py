@@ -9,19 +9,6 @@ class MarvelCDBGateway(ABC):
     """
     
     @abstractmethod
-    def set_session_cookie(self, cookie: str) -> None:
-        """Set the session cookie for authenticated requests"""
-        pass
-    
-    @abstractmethod
-    def get_user_decks(self) -> List[Dict[str, Any]]:
-        """
-        Retrieve user's deck list from MarvelCDB.
-        Returns raw data that will be converted to domain entities.
-        """
-        pass
-    
-    @abstractmethod
     def get_deck_details(self, deck_id: str) -> Dict[str, Any]:
         """
         Retrieve full deck details including card list.
@@ -45,9 +32,4 @@ class MarvelCDBGateway(ABC):
     @abstractmethod
     def download_card_image(self, image_url: str) -> bytes:
         """Download card image binary data"""
-        pass
-    
-    @abstractmethod
-    def search_cards(self, query: str) -> List[Dict[str, Any]]:
-        """Search for cards by name"""
         pass
