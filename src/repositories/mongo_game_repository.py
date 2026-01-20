@@ -24,8 +24,8 @@ class MongoGameRepository(GameRepository):
         except Exception:
             return None
     
-    def save(self, game: Game) -> Game:
-        """Save a game and return the saved entity"""
+    def save(self, game: Game) -> bool:
+        """Save a game and return whether or not it succeeded"""
         doc = self._to_document(game)
         doc['updated_at'] = datetime.utcnow()
         
@@ -35,11 +35,11 @@ class MongoGameRepository(GameRepository):
                 {'_id': ObjectId(game.id)},
                 {'$set': doc}
             )
-            return self.find_by_id(game.id)
+            return True
         else:
             # Insert new game
             result = self.collection.insert_one(doc)
-            return self.find_by_id(str(result.inserted_id))
+            return True if result.inserted_id else False
     
     def delete(self, game_id: str) -> bool:
         """Delete a game by ID"""
@@ -81,10 +81,10 @@ class MongoGameRepository(GameRepository):
                 code=c['code'],
                 position=Position(
                     x=c['position']['x'],
-                    y=c['position']['y']
+                    y=c['position']['y'],
+                    rotation=c.get('rotation', 0),
+                    flip_state=c.get('flip_state', False)
                 ),
-                rotated=c.get('rotated', False),
-                flipped=c.get('flipped', False),
                 counters=c.get('counters', {})
             )
             for c in state_doc.get('play_area', [])
@@ -102,6 +102,8 @@ class MongoGameRepository(GameRepository):
             name=doc['name'],
             deck_ids=tuple(doc.get('deck_ids', [])),
             state=state,
+            status=doc['status'],
+            host=doc['host'],
             created_at=doc.get('created_at'),
             updated_at=doc.get('updated_at')
         )
@@ -111,8 +113,8 @@ class MongoGameRepository(GameRepository):
     
         doc = {
             'name': game.name,
-            'status': game.status.value,  # NEW
-            'host': game.host,  # NEW
+            'status': game.status.value,
+            'host': game.host,
             'created_at': game.created_at or datetime.utcnow()
         }
         
@@ -136,8 +138,29 @@ class MongoGameRepository(GameRepository):
             doc['deck_ids'] = list(game.deck_ids)
         
         if game.state:
-            # Convert state (existing code)
-            ...
+            # Convert players
+            doc['state'] = {
+                'players': [
+                    {
+                        'player_name': p.player_name,
+                        'deck': list(p.deck),
+                        'hand': list(p.hand),
+                        'discard': list(p.discard),
+                        'removed': list(p.removed)
+                    }
+                    for p in game.state.players
+                ],
+                'play_area': [
+                    {
+                        'code': c.code,
+                        'position': {'x': c.position.x, 'y': c.position.y},
+                        'exhausted': c.exhausted,
+                        'flipped': c.flipped,
+                        'counters': dict(c.counters)
+                    }
+                    for c in game.state.play_area
+                ]
+            }
         
         if game.id:
             doc['_id'] = ObjectId(game.id)

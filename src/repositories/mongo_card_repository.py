@@ -1,7 +1,7 @@
 from typing import Optional, List
 from pymongo.database import Database
 from pymongo import UpdateOne
-from datetime import datetime, UTC
+from datetime import datetime
 from src.boundaries.repository import CardRepository
 from src.entities import Card
 
@@ -29,10 +29,10 @@ class MongoCardRepository(CardRepository):
         docs = self.collection.find({'code': {'$in': codes}})
         return [self._to_entity(doc) for doc in docs]
     
-    def save(self, card: Card) -> Card:
+    def save(self, card: Card) -> bool:
         """Save a card and return the saved entity"""
         doc = self._to_document(card)
-        doc['updated_at'] = datetime.now(UTC)
+        doc['updated_at'] = datetime.utcnow()
         
         self.collection.update_one(
             {'code': card.code},
@@ -40,7 +40,7 @@ class MongoCardRepository(CardRepository):
             upsert=True
         )
         
-        return self.find_by_code(card.code)
+        return True
     
     def save_all(self, cards: List[Card]) -> List[Card]:
         """Save multiple cards"""
@@ -50,7 +50,7 @@ class MongoCardRepository(CardRepository):
         operations = []
         for card in cards:
             doc = self._to_document(card)
-            doc['updated_at'] = datetime.now(UTC)
+            doc['updated_at'] = datetime.utcnow()
             operations.append(
                 UpdateOne(
                     filter={'code': card.code},
@@ -89,7 +89,7 @@ class MongoCardRepository(CardRepository):
         doc = {
             'code': card.code,
             'name': card.name,
-            'created_at': card.created_at or datetime.now(UTC)
+            'created_at': card.created_at or datetime.utcnow()
         }
         
         if card.text:

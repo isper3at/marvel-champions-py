@@ -1,10 +1,13 @@
 import requests
 import time
-from typing import Optional, List, Dict, Any
+import re
 from bs4 import BeautifulSoup
+from pathlib import Path
+from typing import Optional, List, Dict, Any
 from src.config import MarvelCDBConfig
 from src.boundaries.marvelcdb_gateway import MarvelCDBGateway
-
+from src.entities import Card, Deck, DeckCard
+from .local_image_storage import LocalImageStorage
 
 class MarvelCDBClient(MarvelCDBGateway):
     """
@@ -26,58 +29,21 @@ class MarvelCDBClient(MarvelCDBGateway):
         if elapsed < self.config.request_delay:
             time.sleep(self.config.request_delay - elapsed)
         self.last_request_time = time.time()
-    
-    def set_session_cookie(self, cookie: str) -> None:
-        """Set the session cookie for authenticated requests"""
-        # Try multiple common cookie names
-        for cookie_name in ['laravel_session', 'session', 'PHPSESSID', 'marvelcdb_session']:
-            self.session.cookies.set(cookie_name, cookie, domain='marvelcdb.com')
-    
-    def get_user_decks(self) -> List[Dict[str, Any]]:
-        """
-        Retrieve user's deck list from MarvelCDB.
-        Returns: [{'id': '...', 'name': '...'}, ...]
-        """
-        self._rate_limit()
         
-        try:
-            url = f"{self.config.base_url}/decklists/mine"
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
-            
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            decks = []
-            # Try multiple selector patterns for deck listings
-            for deck_elem in soup.select('tr.decklist, .decklist-item, .deck-row'):
-                try:
-                    # Find the link to the deck
-                    deck_link = deck_elem.select_one('a[href*="decklist"]')
-                    if not deck_link:
-                        continue
-                    
-                    deck_id = self._extract_deck_id_from_url(deck_link.get('href', ''))
-                    deck_name = deck_link.get_text(strip=True)
-                    
-                    if deck_id and deck_name:
-                        decks.append({
-                            'id': deck_id,
-                            'name': deck_name
-                        })
-                except Exception as e:
-                    print(f"Error parsing deck element: {e}")
-                    continue
-            
-            return decks
-            
-        except requests.RequestException as e:
-            print(f"Error fetching user decks: {e}")
-            return []
-    
-    def get_deck_cards(self, deck_id: str) -> List[Dict[str, Any]]:
+    def get_deck(self, deck_id: str) -> Deck:
         """
-        Retrieve card list for a deck.
-        Returns: [{'code': '...', 'quantity': 3}, ...]
+        Parse MarvelCDB deck HTML and extract card codes with quantities.
+        
+        Args:
+            html: HTML string from MarvelCDB deck page
+            
+        Returns:
+            Dictionary mapping card_code -> quantity
+            
+        Example:
+            >>> html = '''<div>1x <a data-code="19020">Gamora</a></div>'''
+            >>> parse_deck_html(html)
+            {'19020': 1}
         """
         self._rate_limit()
         
@@ -88,47 +54,45 @@ class MarvelCDBClient(MarvelCDBGateway):
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
+            deck_name = soup.find_all('h1', class_='decklist-header')[0].get_text(strip=True)
+            deck_meta = soup.find('div', class_='deck-meta')
+
             cards = []
             
-            # Try to find cards in the deck listing
-            # MarvelCDB typically shows cards in a table or list
-            for card_elem in soup.select('tr.card-container, .card-line, [data-code]'):
-                try:
-                    # Extract card code
-                    code = card_elem.get('data-code')
-                    if not code:
-                        code_elem = card_elem.select_one('[data-code]')
-                        if code_elem:
-                            code = code_elem.get('data-code')
-                    
-                    # Extract quantity
-                    quantity_elem = card_elem.select_one('.qty, .quantity, td.qty')
-                    quantity = 1
-                    if quantity_elem:
-                        qty_text = quantity_elem.get_text(strip=True)
-                        if qty_text and qty_text.isdigit():
-                            quantity = int(qty_text)
-                    
-                    if code:
-                        cards.append({
-                            'code': code,
-                            'quantity': quantity
-                        })
-                except Exception as e:
-                    print(f"Error parsing card element: {e}")
-                    continue
+            deck_content = soup.find_all(class_='deck-content')
             
-            return cards
+            for section in deck_content: #column
+                for type in section.find_all('div'):
+                    for card_div in type.find_all('div'):
+                        # Get the text content
+                        text = card_div.get_text(strip=True)
+                        
+                        # Check if this div starts with a quantity pattern (e.g., "1x", "2x", "3x")
+                        quantity_match = re.match(r'^(\d+)x\s+', text)
+                        
+                        if quantity_match:
+                            quantity = int(quantity_match.group(1))
+                            
+                            # Find the <a> tag with data-code attribute
+                            link = card_div.find('a', {'data-code': True})
+                            
+                            if link and link.get('data-code'):
+                                card_code = link['data-code']
+                                cards.append(DeckCard(code=str(card_code), quantity=quantity))
+                    
+            return Deck(
+                id=deck_id,
+                name=deck_name,
+                cards=cards,
+                source_url=url
+            )
             
         except requests.RequestException as e:
             print(f"Error fetching deck cards: {e}")
-            return []
+            return Deck(id="-1", name="Unknown Deck", cards=[], source_url=None)
     
-    def get_card_info(self, card_code: str) -> Dict[str, Any]:
-        """
-        Retrieve basic card info (code, name, text).
-        Returns: {'code': '...', 'name': '...', 'text': '...'}
-        """
+    def get_card_from_code(self, card_code: str) -> Card:
+        """Fetch card info from MarvelCDB by card code"""
         self._rate_limit()
         
         try:
@@ -140,70 +104,56 @@ class MarvelCDBClient(MarvelCDBGateway):
             
             # Extract card name
             name = None
-            name_elem = soup.select_one('h1.card-name, h1, .card-title')
+            name_elem = soup.select_one('a.card-name')
             if name_elem:
                 name = name_elem.get_text(strip=True)
             
             # Extract card text for accessibility
             text = None
-            text_elem = soup.select_one('.card-text, .card-ability, [class*="text"]')
+            text_elem = soup.select_one('div.card-text')#this is a div of <p>
             if text_elem:
                 text = text_elem.get_text(strip=True)
             
-            return {
-                'code': card_code,
-                'name': name or card_code,
-                'text': text
-            }
+            return Card(
+                code=card_code,
+                name=name if name else card_code,
+                text=text)
             
         except requests.RequestException as e:
             print(f"Error fetching card info: {e}")
-            return {
-                'code': card_code,
-                'name': card_code,
-                'text': None
-            }
+            return Card('-1', 'Unknown Card', 'Unknown')
     
-    def get_card_image_url(self, card_code: str) -> Optional[str]:
-        """Get the image URL for a card"""
-        self._rate_limit()
+    def get_card_image_url(self, card_code: str, local_image_store: LocalImageStorage) -> Optional[str]:
+        """
+        Extract and download card image from MarvelCDB HTML.
         
-        try:
-            url = f"{self.config.base_url}/card/{card_code}"
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
+        Args:
+            html: HTML string from MarvelCDB card/deck page
+            card_code: Card code to find image for
+            save_dir: Directory to save images (default: 'static/images/cards')
             
-            soup = BeautifulSoup(response.content, 'html.parser')
+        Returns:
+            Path to saved image file, or None if not found
             
-            # Look for card image
-            img = soup.select_one('img.card-image, img[alt*="card"], .card-preview img')
-            if img and img.get('src'):
-                src = img['src']
-                # Handle relative URLs
-                if src.startswith('//'):
-                    return 'https:' + src
-                elif src.startswith('/'):
-                    return self.config.base_url + src
-                return src
-            
-            return None
-            
-        except requests.RequestException as e:
-            print(f"Error getting card image URL: {e}")
-            return None
-    
-    def download_card_image(self, image_url: str) -> bytes:
-        """Download card image binary data"""
-        self._rate_limit()
+        Example:
+            >>> html = '''<div class="card-thumbnail-wide" style="background-image:url(/bundles/cards/45001a.jpg)"></div>'''
+            >>> path = download_card_image(html, '45001a')
+            >>> print(path)
+            'static/images/cards/45001a.jpg'
+        """
+
+        url = f"{self.config.base_url}/bundles/cards/{card_code}.png"
         
-        try:
-            response = self.session.get(image_url, timeout=10)
-            response.raise_for_status()
-            return response.content
-        except requests.RequestException as e:
-            print(f"Error downloading image: {e}")
-            raise
-    
+        # 2. Send a GET request to the URL, streaming the response content
+        response = requests.get(url, stream=True, timeout=10)
+        response.raise_for_status()
+        
+        # 3. Check if the request was successful (status code 200)
+        if response.status_code == 200:
+            # 4. Open a local file in write-binary mode ('wb') and write the content
+            local_image_store.save_image(card_code, response.content)
+            print(f"Image downloaded successfully!")
+
     def _extract_deck_id_from_url(self, url: str) -> Optional[str]:
         """Extract deck ID from URL"""
         if not url:
@@ -214,21 +164,3 @@ class MarvelCDBClient(MarvelCDBGateway):
             if part and part.isdigit():
                 return part
         return parts[-1] if parts else None
-    
-    # Additional methods to satisfy the MarvelCDBGateway interface
-    def get_card_data(self, card_code: str) -> Dict[str, Any]:
-        """Get card data (alias for get_card_info)"""
-        return self.get_card_info(card_code)
-    
-    def get_deck_details(self, deck_id: str) -> Dict[str, Any]:
-        """Get deck details (returns card list and deck id)"""
-        cards = self.get_deck_cards(deck_id)
-        return {'cards': cards, 'id': deck_id}
-    
-    def search_cards(self, query: str) -> List[Dict[str, Any]]:
-        """Search for cards by query"""
-        # MarvelCDB doesn't have a public search API, return empty list
-        return []
-
-
-
