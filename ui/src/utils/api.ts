@@ -36,15 +36,6 @@ class GameAPI {
     return response.data;
   }
 
-  async createGame(name: string, deckIds: string[], playerNames: string[]): Promise<GameState> {
-    const response = await this.client.post('/games', {
-      name,
-      deck_ids: deckIds,
-      player_names: playerNames,
-    });
-    return response.data.game || response.data;
-  }
-
   async deleteGame(gameId: string): Promise<void> {
     await this.client.delete(`/games/${gameId}`);
   }

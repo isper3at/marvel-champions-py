@@ -34,7 +34,7 @@ class CardInPlay:
     """
     card: Card
     position: Position
-    counters: Optional[Dict[str, int]] = None
+    counters: Dict[str, int] = {}
     
     def __post_init__(self):
         if self.counters is None:

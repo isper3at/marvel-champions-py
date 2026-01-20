@@ -76,9 +76,7 @@ class GameInteractor:
     
     def create_game(
         self,
-        game_name: str,
-        deck_ids: List[str],
-        player_names: List[str]
+        game: Game
     ) -> Game:
         """
         Create and initialize a new game.

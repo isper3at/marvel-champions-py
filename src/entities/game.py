@@ -6,13 +6,7 @@ from dataclasses import dataclass
 from typing import Optional
 from datetime import datetime
 from src.entities.lobby import GameStatus, LobbyPlayer
-
-
-@dataclass(frozen=True)
-class Position:
-    """2D position on the play field"""
-    x: int
-    y: int
+from src.entities.position import Position
 
 
 @dataclass(frozen=True)
@@ -25,7 +19,7 @@ class CardInPlay:
     position: Position
     exhausted: bool = False
     flipped: bool = False
-    counters: dict[str, int] = None
+    counters: dict[str, int] = {}
     
     def __post_init__(self):
         # Handle mutable default
