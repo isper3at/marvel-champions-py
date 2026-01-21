@@ -3,9 +3,17 @@ Updated Game entity with lobby support.
 """
 
 from dataclasses import dataclass
+import enum
 from typing import Optional
 from datetime import datetime
-from src.entities import GameStatus, LobbyPlayer, GameState
+
+from .play_zone import PlayZone
+from .player import Player
+
+class GamePhase(enum.Enum):
+    LOBBY = "lobby"
+    IN_PROGRESS = "in_progress"
+    FINISHED = "finished"
 
 @dataclass(frozen=True)
 class Game:
@@ -17,19 +25,16 @@ class Game:
     2. IN_PROGRESS - Game is being played
     3. FINISHED - Game completed
     """
-    id: Optional[str]
+    id: str
     name: str
-    status: GameStatus
+    status: GamePhase = GamePhase.LOBBY # initial phase is Lobby
     host: str  # Username of host
     
-    # Lobby phase (status = LOBBY)
-    lobby_players: tuple[LobbyPlayer, ...] = ()
-    encounter_deck_id: Optional[str] = None
-    
-    # Active game phase (status = IN_PROGRESS)
-    deck_ids: tuple[str, ...] = ()
-    state: Optional[GameState] = None
-    
+    players: tuple[Player, ...] = ()
+    player_zones: Optional[dict[str, PlayZone]] = None #player username to PlayZone
+    encounter_deck: Optional[Deck] = None
+    encounter_zone: Optional[PlayZone] = None
+
     # Audit trail
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -40,60 +45,76 @@ class Game:
         if not self.host:
             raise ValueError("Host cannot be empty")
     
-    def get_lobby_player(self, username: str) -> Optional[LobbyPlayer]:
-        """Get a player from the lobby"""
-        for player in self.lobby_players:
-            if player.username == username:
-                return player
-        return None
+    def start_game(self) -> 'Game':
+        """Transition game from LOBBY to IN_PROGRESS"""
+        if self.status != GamePhase.LOBBY:
+            raise ValueError("Can only start game from lobby phase")
+        if not self.encounter_deck:
+            raise ValueError("Encounter deck must be set to start game")
+        if not self.all_players_ready():
+            raise ValueError("All players must be ready to start game")
+        
+        # Initialize player zones
+        new_player_zones = {
+            player.name: PlayZone(player_name=player.name)
+            for player in self.players
+        }
+        
+        # Initialize encounter zone
+        new_encounter_zone = PlayZone(player_name='encounter')
+        
+        return Game(
+            id=self.id,
+            name=self.name,
+            status=GamePhase.IN_PROGRESS,
+            host=self.host,
+            players=self.players,
+            player_zones=new_player_zones,
+            encounter_deck=self.encounter_deck,
+            encounter_zone=new_encounter_zone,
+            created_at=self.created_at
+        )
     
-    def add_player(self, username: str) -> 'Game':
+    def add_player(self, player: Player) -> 'Game':
         """Add a player to the lobby"""
-        if self.status != GameStatus.LOBBY:
+        if self.status != GamePhase.LOBBY:
             raise ValueError("Can only add players in lobby phase")
         
         # Check if already in lobby
-        if self.get_lobby_player(username):
-            raise ValueError(f"Player {username} already in lobby")
-        
-        new_player = LobbyPlayer(username=username, is_host=False)
+        if player in self.players:
+            raise ValueError(f"Player {player.name} already in lobby")
+        else:
+            new_players = self.players + (player,)
         
         return Game(
             id=self.id,
             name=self.name,
             status=self.status,
             host=self.host,
-            lobby_players=self.lobby_players + (new_player,),
-            encounter_deck_id=self.encounter_deck_id,
-            deck_ids=self.deck_ids,
-            state=self.state,
+            players=new_players,
+            play_zones=self.play_zones,
             created_at=self.created_at
         )
     
-    def remove_player(self, username: str) -> 'Game':
+    def remove_player(self, player: Player) -> 'Game':
         """Remove a player from the lobby"""
-        if self.status != GameStatus.LOBBY:
-            raise ValueError("Can only remove players in lobby phase")
-        
-        new_players = tuple(p for p in self.lobby_players if p.username != username)
+        new_players = self.players - (player,)
         
         return Game(
             id=self.id,
             name=self.name,
             status=self.status,
             host=self.host,
-            lobby_players=new_players,
-            encounter_deck_id=self.encounter_deck_id,
-            deck_ids=self.deck_ids,
-            state=self.state,
+            players=new_players,
+            play_zones=self.play_zones,
             created_at=self.created_at
         )
-    
-    def update_lobby_player(self, updated_player: LobbyPlayer) -> 'Game':
+
+    def update_player(self, updated_player: Player) -> 'Game':
         """Update a player in the lobby"""
         new_players = tuple(
             updated_player if p.username == updated_player.username else p
-            for p in self.lobby_players
+            for p in self.players
         )
         
         return Game(
@@ -101,25 +122,23 @@ class Game:
             name=self.name,
             status=self.status,
             host=self.host,
-            lobby_players=new_players,
-            encounter_deck_id=self.encounter_deck_id,
-            deck_ids=self.deck_ids,
-            state=self.state,
+            players=new_players,
+            play_zones=self.play_zones,
             created_at=self.created_at
         )
     
     def all_players_ready(self) -> bool:
         """Check if all players are ready to start"""
-        if not self.lobby_players:
+        if not self.players:
             return False
-        
-        return all(p.is_ready_to_start() for p in self.lobby_players)
-    
+
+        return all(p.is_ready_to_start() for p in self.players)
+
     def can_start(self) -> bool:
         """Check if game can be started"""
         return (
-            self.status == GameStatus.LOBBY and
-            len(self.lobby_players) > 0 and
-            self.encounter_deck_id is not None and
+            self.status == GamePhase.LOBBY and
+            len(self.players) > 0 and
+            self.encounter_deck is not None and
             self.all_players_ready()
         )

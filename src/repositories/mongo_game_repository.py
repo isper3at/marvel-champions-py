@@ -3,7 +3,7 @@ from pymongo.database import Database
 from datetime import datetime
 from bson.objectid import ObjectId
 from src.boundaries.repository import GameRepository
-from src.entities import Game, GameState, PlayerZones, CardInPlay, Position
+from src.entities import Game, GameState, PlayerZones, CardInPlay, Position, GameStatus, LobbyPlayer
 
 
 class MongoGameRepository(GameRepository):
@@ -24,8 +24,8 @@ class MongoGameRepository(GameRepository):
         except Exception:
             return None
     
-    def save(self, game: Game) -> bool:
-        """Save a game and return whether or not it succeeded"""
+    def save(self, game: Game) -> Game:
+        """Save a game and return the saved entity"""
         doc = self._to_document(game)
         doc['updated_at'] = datetime.utcnow()
         
@@ -35,11 +35,11 @@ class MongoGameRepository(GameRepository):
                 {'_id': ObjectId(game.id)},
                 {'$set': doc}
             )
-            return True
+            return self.find_by_id(game.id)
         else:
             # Insert new game
             result = self.collection.insert_one(doc)
-            return True if result.inserted_id else False
+            return self.find_by_id(str(result.inserted_id))
     
     def delete(self, game_id: str) -> bool:
         """Delete a game by ID"""
@@ -61,49 +61,69 @@ class MongoGameRepository(GameRepository):
     
     def _to_entity(self, doc: dict) -> Game:
         """Convert MongoDB document to Game entity"""
-        state_doc = doc['state']
+        # Parse status
+        status = GameStatus(doc.get('status', 'lobby'))
         
-        # Convert players
-        players = tuple(
-            PlayerZones(
-                player_name=p['player_name'],
-                deck=tuple(p.get('deck', [])),
-                hand=tuple(p.get('hand', [])),
-                discard=tuple(p.get('discard', [])),
-                removed=tuple(p.get('removed', []))
+        # Parse lobby players
+        lobby_players = ()
+        if 'lobby_players' in doc:
+            lobby_players = tuple(
+                LobbyPlayer(
+                    username=p['username'],
+                    deck_id=p.get('deck_id'),
+                    is_ready=p.get('is_ready', False),
+                    is_host=p.get('is_host', False)
+                )
+                for p in doc['lobby_players']
             )
-            for p in state_doc.get('players', [])
-        )
         
-        # Convert play area
-        play_area = tuple(
-            CardInPlay(
-                code=c['code'],
-                position=Position(
-                    x=c['position']['x'],
-                    y=c['position']['y'],
-                    rotation=c.get('rotation', 0),
-                    flip_state=c.get('flip_state', False)
-                ),
-                counters=c.get('counters', {})
+        # Parse game state (only if IN_PROGRESS)
+        state = None
+        if 'state' in doc and doc['state']:
+            state_doc = doc['state']
+            
+            # Convert players
+            players = tuple(
+                PlayerZones(
+                    player_name=p['player_name'],
+                    deck=tuple(p.get('deck', [])),
+                    hand=tuple(p.get('hand', [])),
+                    discard=tuple(p.get('discard', [])),
+                    removed=tuple(p.get('removed', []))
+                )
+                for p in state_doc.get('players', [])
             )
-            for c in state_doc.get('play_area', [])
-        )
-        
-        # Build GameState
-        state = GameState(
-            players=players,
-            play_area=play_area
-        )
+            
+            # Convert play area
+            play_area = tuple(
+                CardInPlay(
+                    code=c['code'],
+                    position=Position(
+                        x=c['position']['x'],
+                        y=c['position']['y']
+                    ),
+                    exhausted=c.get('exhausted', False),
+                    flipped=c.get('flipped', False),
+                    counters=c.get('counters', {})
+                )
+                for c in state_doc.get('play_area', [])
+            )
+            
+            state = GameState(
+                players=players,
+                play_area=play_area
+            )
         
         # Build Game
         return Game(
             id=str(doc['_id']),
             name=doc['name'],
+            status=status,
+            host=doc.get('host', ''),
+            lobby_players=lobby_players,
+            encounter_deck_id=doc.get('encounter_deck_id'),
             deck_ids=tuple(doc.get('deck_ids', [])),
             state=state,
-            status=doc['status'],
-            host=doc['host'],
             created_at=doc.get('created_at'),
             updated_at=doc.get('updated_at')
         )
@@ -138,7 +158,7 @@ class MongoGameRepository(GameRepository):
             doc['deck_ids'] = list(game.deck_ids)
         
         if game.state:
-            # Convert players
+            # Convert state
             doc['state'] = {
                 'players': [
                     {
@@ -156,7 +176,7 @@ class MongoGameRepository(GameRepository):
                         'position': {'x': c.position.x, 'y': c.position.y},
                         'exhausted': c.exhausted,
                         'flipped': c.flipped,
-                        'counters': dict(c.counters)
+                        'counters': c.counters
                     }
                     for c in game.state.play_area
                 ]

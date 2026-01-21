@@ -116,6 +116,23 @@ class DeckInPlay:
             hand=tuple(hand_list)
         )
         
+    def shuffle(self) -> 'DeckInPlay':
+        """
+        Shuffle the draw pile
+        
+        Returns:
+            New DeckInPlay state with shuffled draw pile
+        """
+        shuffled_draw = list(self.draw_pile)
+        random.shuffle(shuffled_draw)
+        
+        return DeckInPlay(
+            deck=self.deck,
+            draw_pile=tuple(shuffled_draw),
+            discard_pile=self.discard_pile,
+            hand=self.hand
+        )
+        
     def shuffle_discard_into_draw(self) -> 'DeckInPlay':
         """
         Shuffle discard pile back into draw pile

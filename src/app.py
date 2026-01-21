@@ -98,24 +98,36 @@ def create_app(config_override=None):
         raise
     
     # ========================================================================
-    # 4. INITIALIZE REPOSITORIES (Boundaries - Data Access)
+    # 6. INITIALIZE INTERACTORS (Business Logic)
     # ========================================================================
-    from src.repositories import (
-        MongoCardRepository,
-        MongoDeckRepository,
-        MongoGameRepository
+    from src.interactors import (
+        CardInteractor,
+        DeckInteractor,
+        GameInteractor,
+        LobbyInteractor
     )
-    
+
     try:
-        card_repo = MongoCardRepository(db)
-        deck_repo = MongoDeckRepository(db)
-        game_repo = MongoGameRepository(db)
-        logger.info("✓ Repositories initialized")
-        logger.info("  - MongoCardRepository")
-        logger.info("  - MongoDeckRepository")
-        logger.info("  - MongoGameRepository")
+        card_interactor = CardInteractor(
+            card_repo,
+            marvelcdb_gateway,
+            image_storage
+        )
+        deck_interactor = DeckInteractor(
+            deck_repo,
+            card_interactor,
+            marvelcdb_gateway
+        )
+        # FIX: GameInteractor needs deck_interactor, not card_repo
+        game_interactor = GameInteractor(game_repo, deck_interactor)
+        lobby_interactor = LobbyInteractor(game_repo, deck_repo)
+        
+        logger.info("✓ Interactors initialized")
+        logger.info("  - CardInteractor")
+        logger.info("  - DeckInteractor")
+        logger.info("  - GameInteractor")
     except Exception as e:
-        logger.error(f"✗ Repository initialization failed: {e}")
+        logger.error(f"✗ Interactor initialization failed: {e}")
         raise
     
     # ========================================================================

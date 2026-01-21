@@ -3,9 +3,10 @@ CardInPlay entity - represents a card on the game board with state.
 """
 
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import List
 from .card import Card
 from .position import Position
+from .token import Token
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,7 @@ class CardInPlay:
     """
     card: Card
     position: Position
-    counters: Dict[str, int] = {}
+    counters: List[Token] = ()
     
     def __post_init__(self):
         if self.counters is None:
