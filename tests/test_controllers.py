@@ -17,7 +17,7 @@ from src.controllers import card_bp, deck_bp, game_bp
 import src.controllers.card_controller as card_controller
 import src.controllers.deck_controller as deck_controller
 import src.controllers.game_controller as game_controller
-from src.entities import Card, Deck, DeckCard, Game, GameState, PlayerZones
+from src.entities import Card, Deck, DeckCard, Game, GameState
 
 
 @pytest.fixture

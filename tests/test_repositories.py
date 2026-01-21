@@ -2,7 +2,7 @@
 
 import pytest
 from src.repositories import MongoCardRepository, MongoDeckRepository, MongoGameRepository
-from src.entities import Card, Deck, DeckCard, Game, GameState, PlayerZones, Position, CardInPlay
+from src.entities import Card, Deck, DeckCard, Game, GameState, Position, CardInPlay, PlayZone
 
 
 class TestMongoCardRepository:
@@ -171,7 +171,7 @@ class TestMongoGameRepository:
             deck_ids=('deck1',),
             state=GameState(
                 players=(
-                    PlayerZones(
+                    PlayZone(
                         player_name='Alice',
                         deck=('01001a', '01002a'),
                         hand=(),
@@ -200,7 +200,7 @@ class TestMongoGameRepository:
             deck_ids=('deck1',),
             state=GameState(
                 players=(
-                    PlayerZones(player_name='Alice', deck=(), hand=(), discard=()),
+                    PlayZone(player_name='Alice', deck=(), hand=(), discard=()),
                 ),
                 play_area=(
                     CardInPlay(
@@ -233,8 +233,8 @@ class TestMongoGameRepository:
             deck_ids=('deck1', 'deck2'),
             state=GameState(
                 players=(
-                    PlayerZones(player_name='Alice', deck=('01001a',), hand=(), discard=()),
-                    PlayerZones(player_name='Bob', deck=('01010a',), hand=(), discard=()),
+                    PlayZone(player_name='Alice', deck=('01001a',), hand=(), discard=()),
+                    PlayZone(player_name='Bob', deck=('01010a',), hand=(), discard=()),
                 ),
                 play_area=()
             )
@@ -257,7 +257,7 @@ class TestMongoGameRepository:
                 name=f'Game {i}',
                 deck_ids=('deck1',),
                 state=GameState(
-                    players=(PlayerZones(player_name='Alice', deck=(), hand=(), discard=()),),
+                    players=(PlayZone(player_name='Alice', deck=(), hand=(), discard=()),),
                     play_area=()
                 )
             )

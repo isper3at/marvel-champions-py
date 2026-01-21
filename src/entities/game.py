@@ -9,6 +9,7 @@ from datetime import datetime
 
 from .play_zone import PlayZone
 from .player import Player
+from .deck import Deck
 
 class GamePhase(enum.Enum):
     LOBBY = "lobby"
@@ -27,8 +28,8 @@ class Game:
     """
     id: str
     name: str
-    status: GamePhase = GamePhase.LOBBY # initial phase is Lobby
     host: str  # Username of host
+    status: GamePhase = GamePhase.LOBBY # initial phase is Lobby
     
     players: tuple[Player, ...] = ()
     player_zones: Optional[dict[str, PlayZone]] = None #player username to PlayZone
@@ -66,8 +67,8 @@ class Game:
         return Game(
             id=self.id,
             name=self.name,
-            status=GamePhase.IN_PROGRESS,
             host=self.host,
+            status=GamePhase.IN_PROGRESS,
             players=self.players,
             player_zones=new_player_zones,
             encounter_deck=self.encounter_deck,
@@ -89,24 +90,31 @@ class Game:
         return Game(
             id=self.id,
             name=self.name,
-            status=self.status,
             host=self.host,
+            status=GamePhase.IN_PROGRESS,
             players=new_players,
-            play_zones=self.play_zones,
-            created_at=self.created_at
+            encounter_deck=self.encounter_deck,
+            updated_at=datetime.utcnow()
         )
     
     def remove_player(self, player: Player) -> 'Game':
-        """Remove a player from the lobby"""
+        """Remove a player from the game"""
+
+        if(self.host == player.name):
+            raise ValueError("Host cannot be removed from the game")
+
         new_players = self.players - (player,)
         
+        #If the game was in progress, also remove their play zone
+        new_player_zones = self.player_zones.copy().pop(player.name, None) if self.player_zones else None
+
         return Game(
             id=self.id,
             name=self.name,
-            status=self.status,
             host=self.host,
+            status=self.status,
             players=new_players,
-            play_zones=self.play_zones,
+            play_zones=new_player_zones,
             created_at=self.created_at
         )
 
@@ -120,8 +128,8 @@ class Game:
         return Game(
             id=self.id,
             name=self.name,
-            status=self.status,
             host=self.host,
+            status=self.status,
             players=new_players,
             play_zones=self.play_zones,
             created_at=self.created_at

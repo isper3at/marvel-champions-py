@@ -15,7 +15,7 @@ from datetime import datetime
 
 from src.boundaries.repository import GameRepository, DeckRepository
 from src.entities import (
-    Game, GameState, GameStatus, LobbyPlayer, PlayerZones
+    Game, GameState, GamePhase, Player, PlayZone
 )
 
 
@@ -42,7 +42,7 @@ class LobbyInteractor:
             Created Game in LOBBY status
         """
         # Create host as first player
-        host_player = LobbyPlayer(
+        host_player = Player(
             username=host,
             is_host=True,
             is_ready=False
@@ -51,9 +51,9 @@ class LobbyInteractor:
         game = Game(
             id=None,
             name=name,
-            status=GameStatus.LOBBY,
+            status=GamePhase.LOBBY,
             host=host,
-            lobby_players=(host_player,),
+            players=(host_player,),
             created_at=datetime.utcnow()
         )
         
@@ -62,13 +62,13 @@ class LobbyInteractor:
     def list_lobbies(self) -> List[Game]:
         """Get all lobbies (games with status=LOBBY)"""
         all_games = self.game_repo.find_all()
-        return [g for g in all_games if g.status == GameStatus.LOBBY]
+        return [g for g in all_games if g.status == GamePhase.LOBBY]
     
     def get_lobby(self, game_id: str) -> Optional[Game]:
         """Get a lobby by ID"""
         game = self.game_repo.find_by_id(game_id)
         
-        if game and game.status == GameStatus.LOBBY:
+        if game and game.status == GamePhase.LOBBY:
             return game
         
         return None
@@ -264,7 +264,7 @@ class LobbyInteractor:
             random.shuffle(card_codes)
             
             # Create player zones
-            zones = PlayerZones(
+            zones = PlayZone(
                 player_name=lobby_player.username,
                 deck=tuple(card_codes),
                 hand=(),
@@ -283,7 +283,7 @@ class LobbyInteractor:
         from dataclasses import replace
         started_game = replace(
             game,
-            status=GameStatus.IN_PROGRESS,
+            status=GamePhase.IN_PROGRESS,
             deck_ids=tuple(deck_ids),
             state=initial_state,
             updated_at=datetime.utcnow()

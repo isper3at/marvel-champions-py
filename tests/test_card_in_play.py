@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from src.entities import CardInPlay, Card, Position, FlipState
+from src.entities import CardInPlay, Card, Position
 import pytest
 
 class TestCardInPlay:

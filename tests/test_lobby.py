@@ -10,7 +10,7 @@ Tests the full lobby lifecycle:
 """
 
 import pytest
-from src.entities import Game, GameStatus, LobbyPlayer, Deck, DeckCard
+from src.entities import Game, GamePhase, Player, Deck, DeckCard
 from src.interactors import LobbyInteractor
 from src.repositories import MongoGameRepository, MongoDeckRepository
 
@@ -28,12 +28,12 @@ class TestLobbyLifecycle:
         
         assert lobby.id is not None
         assert lobby.name == "Test Game"
-        assert lobby.status == GameStatus.LOBBY
+        assert lobby.status == GamePhase.LOBBY
         assert lobby.host == "Alice"
-        assert len(lobby.lobby_players) == 1
-        assert lobby.lobby_players[0].username == "Alice"
-        assert lobby.lobby_players[0].is_host is True
-        assert lobby.lobby_players[0].is_ready is False
+        assert len(lobby.players) == 1
+        assert lobby.players[0].username == "Alice"
+        assert lobby.players[0].is_host is True
+        assert lobby.players[0].is_ready is False
     
     def test_join_lobby(self, test_db):
         """Test player joining lobby"""
@@ -249,7 +249,7 @@ class TestLobbyLifecycle:
         # Start game
         game = interactor.start_game(lobby.id, "Alice")
         
-        assert game.status == GameStatus.IN_PROGRESS
+        assert game.status == GamePhase.IN_PROGRESS
         assert game.state is not None
         assert len(game.state.players) == 2
         
@@ -396,9 +396,9 @@ class TestLobbyLifecycle:
 class TestLobbyEntityMethods:
     """Test LobbyPlayer and Game entity methods"""
     
-    def test_lobby_player_with_deck(self):
-        """Test LobbyPlayer.with_deck()"""
-        player = LobbyPlayer(username="Alice", is_host=True)
+    def test_player_with_deck(self):
+        """Test Player.with_deck()"""
+        player = Player(username="Alice", is_host=True)
         
         with_deck = player.with_deck("deck123")
         
@@ -407,9 +407,9 @@ class TestLobbyEntityMethods:
         assert with_deck.is_host is True
         assert player.deck_id is None  # Original unchanged
     
-    def test_lobby_player_toggle_ready(self):
-        """Test LobbyPlayer.toggle_ready()"""
-        player = LobbyPlayer(
+    def test_player_toggle_ready(self):
+        """Test Player.toggle_ready()"""
+        player = Player(
             username="Alice",
             deck_id="deck123",
             is_ready=False
@@ -421,9 +421,9 @@ class TestLobbyEntityMethods:
         not_ready = ready.toggle_ready()
         assert not_ready.is_ready is False
     
-    def test_lobby_player_is_ready_to_start(self):
-        """Test LobbyPlayer.is_ready_to_start()"""
-        player = LobbyPlayer(username="Alice")
+    def test_player_is_ready_to_start(self):
+        """Test Player.is_ready_to_start()"""
+        player = Player(username="Alice")
         assert player.is_ready_to_start() is False
         
         with_deck = player.with_deck("deck123")

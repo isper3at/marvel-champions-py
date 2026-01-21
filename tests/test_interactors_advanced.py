@@ -6,7 +6,7 @@ These tests focus on business logic coverage and edge cases.
 
 import pytest
 from unittest.mock import Mock, patch
-from src.entities import Card, Deck, DeckCard, Game, GameState, PlayerZones
+from src.entities import Card, Deck, DeckCard, Game, GameState
 from src.interactors import CardInteractor, DeckInteractor, GameInteractor
 
 

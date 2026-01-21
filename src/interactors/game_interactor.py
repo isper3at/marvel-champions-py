@@ -5,7 +5,7 @@ Game Interactor - Business logic for game operations.
 from typing import Optional, List
 import random
 from src.boundaries.repository import GameRepository
-from src.entities import Game, GameState, GameStatus, PlayerZones, CardInPlay, Position
+from src.entities import Game, GameState, GamePhase, PlayZone, CardInPlay, Position
 from .deck_interactor import DeckInteractor
 
 
@@ -55,7 +55,7 @@ class GameInteractor:
             random.shuffle(card_codes)
             
             # Create player zones
-            player = PlayerZones(
+            player = PlayZone(
                 player_name=player_name,
                 deck=tuple(card_codes),
                 hand=(),
@@ -74,7 +74,7 @@ class GameInteractor:
         game = Game(
             id=None,
             name=game_name,
-            status=GameStatus.IN_PROGRESS,
+            status=GamePhase.IN_PROGRESS,
             host=player_names[0] if player_names else '',
             deck_ids=tuple(deck_ids),
             state=state
@@ -176,7 +176,7 @@ class GameInteractor:
         except ValueError:
             return game
         
-        updated_player = PlayerZones(
+        updated_player = PlayZone(
             player_name=player.player_name,
             deck=player.deck,
             hand=tuple(hand_list),

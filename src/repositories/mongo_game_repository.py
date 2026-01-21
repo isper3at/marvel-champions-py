@@ -3,7 +3,7 @@ from pymongo.database import Database
 from datetime import datetime
 from bson.objectid import ObjectId
 from src.boundaries.repository import GameRepository
-from src.entities import Game, GameState, PlayerZones, CardInPlay, Position, GameStatus, LobbyPlayer
+from src.entities import Game, GameState, PlayZone, CardInPlay, Position, GamePhase, Player
 
 
 class MongoGameRepository(GameRepository):
@@ -62,19 +62,19 @@ class MongoGameRepository(GameRepository):
     def _to_entity(self, doc: dict) -> Game:
         """Convert MongoDB document to Game entity"""
         # Parse status
-        status = GameStatus(doc.get('status', 'lobby'))
+        status = GamePhase(doc.get('status', 'lobby'))
         
         # Parse lobby players
-        lobby_players = ()
-        if 'lobby_players' in doc:
-            lobby_players = tuple(
-                LobbyPlayer(
+        players = ()
+        if 'players' in doc:
+            players = tuple(
+                Player(
                     username=p['username'],
                     deck_id=p.get('deck_id'),
                     is_ready=p.get('is_ready', False),
                     is_host=p.get('is_host', False)
                 )
-                for p in doc['lobby_players']
+                for p in doc['players']
             )
         
         # Parse game state (only if IN_PROGRESS)
@@ -84,7 +84,7 @@ class MongoGameRepository(GameRepository):
             
             # Convert players
             players = tuple(
-                PlayerZones(
+                PlayZone(
                     player_name=p['player_name'],
                     deck=tuple(p.get('deck', [])),
                     hand=tuple(p.get('hand', [])),
@@ -120,7 +120,7 @@ class MongoGameRepository(GameRepository):
             name=doc['name'],
             status=status,
             host=doc.get('host', ''),
-            lobby_players=lobby_players,
+            players=players,
             encounter_deck_id=doc.get('encounter_deck_id'),
             deck_ids=tuple(doc.get('deck_ids', [])),
             state=state,

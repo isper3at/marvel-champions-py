@@ -5,7 +5,7 @@ from datetime import datetime
 from src.interactors import LobbyInteractor
 from src.repositories import MongoGameRepository, MongoDeckRepository
 from src.entities import (
-    Game, GameStatus, LobbyPlayer, Deck, DeckCard, Card
+    Game, GamePhase, Player, Deck, DeckCard, Card
 )
 from src.repositories import MongoCardRepository
 
@@ -77,13 +77,13 @@ class TestLobbyInteractor:
         
         assert game.id is not None
         assert game.name == 'My Game'
-        assert game.status == GameStatus.LOBBY
+        assert game.status == GamePhase.LOBBY
         assert game.host == 'Alice'
-        assert len(game.lobby_players) == 1
-        assert game.lobby_players[0].username == 'Alice'
-        assert game.lobby_players[0].is_host is True
-        assert game.lobby_players[0].is_ready is False
-        assert game.lobby_players[0].deck_id is None
+        assert len(game.players) == 1
+        assert game.players[0].username == 'Alice'
+        assert game.players[0].is_host is True
+        assert game.players[0].is_ready is False
+        assert game.players[0].deck_id is None
         assert game.created_at is not None
     
     def test_create_lobby_empty_name(self, lobby_interactor):
@@ -360,7 +360,7 @@ class TestLobbyInteractor:
         
         started = lobby_interactor.start_game(lobby.id, 'Alice')
         
-        assert started.status == GameStatus.IN_PROGRESS
+        assert started.status == GamePhase.IN_PROGRESS
         assert started.state is not None
         assert len(started.state.players) == 1
         assert started.state.players[0].player_name == 'Alice'
@@ -392,7 +392,7 @@ class TestLobbyInteractor:
         
         started = lobby_interactor.start_game(lobby.id, 'Alice')
         
-        assert started.status == GameStatus.IN_PROGRESS
+        assert started.status == GamePhase.IN_PROGRESS
         assert len(started.state.players) == 2
         
         player_names = [p.player_name for p in started.state.players]

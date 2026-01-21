@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-from src.entities import Card, Deck, DeckCard, Game, GameState, PlayerZones, CardInPlay, Position
+from src.entities import Card, Deck, DeckCard, Game, GameState, CardInPlay, Position
 
 
 class TestCard:
