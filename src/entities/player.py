@@ -2,8 +2,9 @@
 Player entity
 """
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
+from src.entities.card import Card
 from src.entities.deck_in_play import DeckInPlay
 from .deck import Deck
 
@@ -23,7 +24,10 @@ class Player:
     name: str
     is_host: bool = False
     is_ready: bool = False
+
     deck: Optional[Deck] = None
+    hand: Optional[List[Card]] = None
+    discard_pile: Optional[List[Card]] = None
     
     def __post_init__(self):
         if not self.id:

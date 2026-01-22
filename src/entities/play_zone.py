@@ -20,3 +20,4 @@ class PlayZone:
     """
     decks_in_play: Tuple[str, DeckInPlay]  # Tuple of Deck IDs in this zone
     cards_in_play: Tuple[str, CardInPlay]  # Tuple of CardInPlay IDs in this zone
+    dials_in_play: Tuple[str, ...]  # Tuple of Dial IDs in this zone
