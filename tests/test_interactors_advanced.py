@@ -6,7 +6,8 @@ These tests focus on business logic coverage and edge cases.
 
 import pytest
 from unittest.mock import Mock, patch
-from src.entities import Card, Deck, DeckCard, Game, GameState
+from src.entities import Card, Deck, DeckCard, Game
+from src.entities.deck import DeckList
 from src.interactors import CardInteractor, DeckInteractor, GameInteractor
 
 
@@ -109,44 +110,31 @@ class TestDeckInteractorAdvanced:
     
     def test_import_deck_from_marvelcdb(self, deck_interactor):
         """Test importing a deck from MarvelCDB"""
-        deck_cards = [
-            {'code': 'card1', 'quantity': 2},
-            {'code': 'card2', 'quantity': 1}
-        ]
+        deck_list = DeckList(
+            id='deck123',
+            name='Imported',
+            cards=(
+                DeckCard(code='card1', name='Card 1', quantity=2),
+                DeckCard(code='card2', name='Card 2', quantity=1)
+            )
+        )
+
+        deck_interactor.marvelcdb.get_deck_cards = Mock(return_value=deck_list)
         
-        deck_interactor.marvelcdb.get_deck_cards = Mock(return_value=deck_cards)
-        deck_interactor.card_interactor.import_cards_bulk = Mock()
-        
-        created_deck = Deck(id='deck123', name='Imported', cards=())
+        created_deck = deck_interactor.marvelcdb.get_cards_from_deck_list(deck_list)
         deck_interactor.deck_repo.save = Mock(return_value=created_deck)
         
         result = deck_interactor.import_deck_from_marvelcdb('deck123')
         
         assert result is not None
-        deck_interactor.card_interactor.import_cards_bulk.assert_called_once_with(['card1', 'card2'])
         deck_interactor.deck_repo.save.assert_called_once()
     
     def test_import_deck_no_cards(self, deck_interactor):
         """Test importing a deck with no cards raises error"""
-        deck_interactor.marvelcdb.get_deck_cards = Mock(return_value=[])
+        deck_interactor.marvelcdb.get_deck = Mock(return_value=[])
         
         with pytest.raises(ValueError):
             deck_interactor.import_deck_from_marvelcdb('deck123')
-    
-    def test_create_deck(self, deck_interactor):
-        """Test creating a new deck"""
-        card_codes = [('card1', 2), ('card2', 1)]
-        
-        deck_interactor.card_interactor.import_cards_bulk = Mock()
-        
-        created_deck = Deck(id='new_deck', name='My Deck', cards=())
-        deck_interactor.deck_repo.save = Mock(return_value=created_deck)
-        
-        result = deck_interactor.create_deck('My Deck', card_codes)
-        
-        assert result is not None
-        deck_interactor.card_interactor.import_cards_bulk.assert_called_once_with(['card1', 'card2'])
-
 
 class TestGameInteractorAdvanced:
     """Advanced unit tests for GameInteractor"""
@@ -189,44 +177,42 @@ class TestEdgeCases:
     """Test edge cases and error handling"""
     
     def test_empty_deck_zones(self):
-        """Test creating zones with empty deck"""
-        zones = PlayerZones(
-            player_name='Player',
-            deck=(),
-            hand=(),
-            discard=(),
-            removed=()
-        )
+        """Test creating empty play zone"""
+        from src.entities import PlayZone, Position
+        zone = PlayZone()
         
-        assert len(zones.deck) == 0
-        assert len(zones.hand) == 0
+        assert len(zone.decks_in_play) == 0
+        assert len(zone.cards_in_play) == 0
     
     def test_card_with_zero_cost(self):
-        """Test creating a card with zero cost"""
-        card = Card(code='free', name='Free Card')
-        
-        assert card.code == 'free'
-        assert card.name == 'Free Card'
+        """Test card creation"""
+        card = Card(code='card_free', name='Free Card')
+        assert card.code == 'card_free'
     
     def test_deck_with_cards(self):
         """Test creating a deck with cards"""
-        cards = (
-            DeckCard(code='card1', quantity=2),
-            DeckCard(code='card2', quantity=1)
-        )
+        cards = [
+            DeckCard(code='card1', name='Card 1', quantity=2),
+            DeckCard(code='card2', name='Card 2', quantity=1)
+        ]
         deck = Deck(id='test', name='Test', cards=cards)
         
         assert len(deck.cards) == 2
     
-    def test_game_state_creation(self):
-        """Test creating game state"""
-        players = (
-            PlayerZones(player_name='Player 1', deck=(), hand=(), discard=(), removed=()),
+    def test_game_creation(self):
+        """Test creating a game"""
+        from src.entities import GamePhase, Player
+        player = Player(name='Player 1')
+        game = Game(
+            name='Test Game',
+            host='Player 1',
+            phase=GamePhase.LOBBY,
+            players=(player,),
+            play_zone=None
         )
-        state = GameState(players=players, play_area=())
         
-        assert len(state.players) == 1
-        assert state.players[0].player_name == 'Player 1'
+        assert game.name == 'Test Game'
+        assert len(game.players) == 1
 
 
 class TestMockingPatterns:
@@ -251,21 +237,3 @@ class TestMockingPatterns:
         
         assert result is not None
         mock_gateway.get_card_info.assert_called_once_with('test')
-    
-    def test_deck_interactor_with_card_interactor_mock(self):
-        """Test mocking interactor dependencies"""
-        mock_repo = Mock()
-        mock_card_interactor = Mock()
-        mock_gateway = Mock()
-        
-        deck_interactor = DeckInteractor(mock_repo, mock_card_interactor, mock_gateway)
-        
-        # Setup mocks
-        mock_gateway.get_deck_cards = Mock(return_value=[{'code': 'card1', 'quantity': 1}])
-        mock_card_interactor.import_cards_bulk = Mock()
-        mock_repo.save = Mock(return_value=Deck(id='test', name='Test', cards=()))
-        
-        result = deck_interactor.import_deck_from_marvelcdb('deck123')
-        
-        assert result is not None
-        mock_card_interactor.import_cards_bulk.assert_called_once()

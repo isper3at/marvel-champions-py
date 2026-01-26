@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from src.entities import CardInPlay, Card, Position
+from src.entities import CardInPlay, Card, Position, FlipState
 import pytest
 
 class TestCardInPlay:
@@ -21,7 +21,7 @@ class TestCardInPlay:
         """Test card flip (face up/face down)"""
         card = CardInPlay(
             card=Card(code='01001a', name='Test Card'),
-            position=Position(x=100, y=200),
+            position=Position(x=100, y=200, flip_state=FlipState.FACE_UP),
             counters={'damage': 3}
         )
         

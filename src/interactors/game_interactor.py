@@ -5,7 +5,7 @@ Game Interactor - Business logic for game operations.
 from typing import Optional, List
 import random
 from src.boundaries.repository import GameRepository
-from src.entities import Game, GameState, GamePhase, PlayZone, CardInPlay, Position
+from src.entities import Game, GamePhase, PlayZone, CardInPlay, Position
 from .deck_interactor import DeckInteractor
 
 
@@ -74,7 +74,7 @@ class GameInteractor:
         game = Game(
             id=None,
             name=game_name,
-            status=GamePhase.IN_PROGRESS,
+            phase=GamePhase.IN_PROGRESS,
             host=player_names[0] if player_names else '',
             deck_ids=tuple(deck_ids),
             state=state

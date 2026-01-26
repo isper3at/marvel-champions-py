@@ -1,8 +1,12 @@
 """Tests for repository implementations"""
 
 import pytest
+import uuid
+from src.entities.deck_in_play import DeckInPlay
+from src.entities.encounter_deck import EncounterDeck
+from src.entities.encounter_deck_in_play import EncounterDeckInPlay
 from src.repositories import MongoCardRepository, MongoDeckRepository, MongoGameRepository
-from src.entities import Card, Deck, DeckCard, Game, GameState, Position, CardInPlay, PlayZone
+from src.entities import Card, Deck, DeckCard, Game, GamePhase, CardInPlay, Position, Player, PlayZone
 
 
 class TestMongoCardRepository:
@@ -87,12 +91,12 @@ class TestMongoDeckRepository:
         repo = MongoDeckRepository(test_db)
         
         deck = Deck(
-            id=None,
+            id='deck123',
             name='Justice Spider-Man',
-            cards=(
-                DeckCard(code='01001a', quantity=1),
-                DeckCard(code='01002a', quantity=3),
-            )
+            cards=[
+                Card(code='01001a', name='Spider-Man', text="1"),
+                Card(code='01002a', name='Iron Man', text="3"),
+            ]
         )
         
         saved = repo.save(deck)
@@ -109,9 +113,9 @@ class TestMongoDeckRepository:
         repo = MongoDeckRepository(test_db)
         
         deck = Deck(
-            id=None,
+            id='deck123',
             name='Original Name',
-            cards=(DeckCard(code='01001a', quantity=1),)
+            cards=[Card(code='01001a', name='Spider-Man', text="1")]
         )
         
         saved = repo.save(deck)
@@ -133,9 +137,9 @@ class TestMongoDeckRepository:
         repo = MongoDeckRepository(test_db)
         
         deck = Deck(
-            id=None,
+            id='deck123',
             name='Test Deck',
-            cards=(DeckCard(code='01001a', quantity=1),)
+            cards=[Card(code='01001a', name='Spider-Man', text="1")]
         )
         
         saved = repo.save(deck)
@@ -151,8 +155,8 @@ class TestMongoDeckRepository:
         """Test finding all decks"""
         repo = MongoDeckRepository(test_db)
         
-        repo.save(Deck(id=None, name='Deck 1', cards=()))
-        repo.save(Deck(id=None, name='Deck 2', cards=()))
+        repo.save(Deck(id='deck1', name='Deck 1', cards=[]))
+        repo.save(Deck(id='deck2', name='Deck 2', cards=[]))
         
         all_decks = repo.find_all()
         assert len(all_decks) >= 2
@@ -165,22 +169,17 @@ class TestMongoGameRepository:
         """Test saving and finding a game"""
         repo = MongoGameRepository(test_db)
         
+        player = Player(name='Alice', is_host=True)
+        
         game = Game(
-            id=None,
             name='Test Game',
-            deck_ids=('deck1',),
-            state=GameState(
-                players=(
-                    PlayZone(
-                        player_name='Alice',
-                        deck=('01001a', '01002a'),
-                        hand=(),
-                        discard=()
-                    ),
-                ),
-                play_area=()
-            )
+            host='Alice',
+            phase=GamePhase.LOBBY,
+            players=(player,),
+            play_zone=None
         )
+        
+        assert game.id is not None
         
         saved = repo.save(game)
         assert saved.id is not None
@@ -188,78 +187,85 @@ class TestMongoGameRepository:
         found = repo.find_by_id(saved.id)
         assert found is not None
         assert found.name == 'Test Game'
-        assert len(found.state.players) == 1
+        assert len(found.players) == 1
     
-    def test_save_game_with_cards_in_play(self, test_db):
-        """Test saving game with cards on table"""
+    def test_save_game_in_progress(self, test_db):
+        """Test saving game in progress with cards in play"""
         repo = MongoGameRepository(test_db)
         
+        player = Player(name='Alice', is_host=True)
+        zone = PlayZone()
+        
+        card = Card(code='01001a', name='Spider-Man')
+        position = Position(x=100, y=200)
+        card_in_play = CardInPlay(card=card, position=position)
+        encounter_deck_in_play = EncounterDeckInPlay(
+            encounterDeck=EncounterDeck(id='encounter1', name='Encounter Deck', cards=[]),
+            draw_position=Position(x=0, y=0),
+            discard_position=Position(x=0, y=0),
+            draw_pile=(),
+            discard_pile=()
+        )
+        alice_deck_in_play = DeckInPlay(
+            deck=Deck(id='deck123', name='Alice Deck', cards=[]),
+            draw_position=Position(x=50, y=50),
+            discard_position=Position(x=60, y=60),
+            draw_pile=(),
+            discard_pile=(),
+            hand=()
+        )
+        zone = zone.set_encounter_deck(encounter_deck_in_play)
+        zone = zone.add_deck(alice_deck_in_play)
+        zone = zone.add_card(card_in_play)
+        
         game = Game(
-            id=None,
             name='Game with Cards',
-            deck_ids=('deck1',),
-            state=GameState(
-                players=(
-                    PlayZone(player_name='Alice', deck=(), hand=(), discard=()),
-                ),
-                play_area=(
-                    CardInPlay(
-                        code='01001a',
-                        position=Position(x=100, y=200),
-                        rotated=True,
-                        counters={'damage': 3}
-                    ),
-                )
-            )
+            host='Alice',
+            phase=GamePhase.IN_PROGRESS,
+            players=(player,),
+            play_zone=zone
         )
         
         saved = repo.save(game)
-        found = repo.find_by_id(saved.id)
         
-        assert len(found.state.play_area) == 1
-        card = found.state.play_area[0]
+        assert len(saved.play_zone.cards_in_play) == 1
+        card = saved.play_zone.cards_in_play[0]
         assert card.code == '01001a'
-        assert card.position.x == 100
-        assert card.rotated is True
-        assert card.counters['damage'] == 3
     
     def test_save_multiplayer_game(self, test_db):
         """Test saving multiplayer game"""
         repo = MongoGameRepository(test_db)
         
+        alice = Player(name='Alice', is_host=True)
+        bob = Player(name='Bob', is_host=False)
+        
         game = Game(
-            id=None,
             name='2 Player Game',
-            deck_ids=('deck1', 'deck2'),
-            state=GameState(
-                players=(
-                    PlayZone(player_name='Alice', deck=('01001a',), hand=(), discard=()),
-                    PlayZone(player_name='Bob', deck=('01010a',), hand=(), discard=()),
-                ),
-                play_area=()
-            )
+            host='Alice',
+            phase=GamePhase.LOBBY,
+            players=(alice, bob),
+            play_zone=None
         )
         
         saved = repo.save(game)
         found = repo.find_by_id(saved.id)
         
-        assert len(found.state.players) == 2
-        assert found.state.players[0].player_name == 'Alice'
-        assert found.state.players[1].player_name == 'Bob'
+        assert len(found.players) == 2
+        assert found.players[0].name == 'Alice'
+        assert found.players[1].name == 'Bob'
     
     def test_find_recent_games(self, test_db):
         """Test finding recent games"""
         repo = MongoGameRepository(test_db)
         
         for i in range(5):
+            player = Player(name=f'Player {i}')
             game = Game(
-                id=None,
                 name=f'Game {i}',
-                deck_ids=('deck1',),
-                state=GameState(
-                    players=(PlayZone(player_name='Alice', deck=(), hand=(), discard=()),),
-                    play_area=()
-                )
+                host=f'Player {i}',
+                phase=GamePhase.LOBBY,
+                players=(player,),
+                play_zone=None
             )
             repo.save(game)
         

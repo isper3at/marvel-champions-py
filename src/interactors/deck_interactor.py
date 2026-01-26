@@ -91,14 +91,15 @@ class DeckInteractor:
             >>> assert deck.source_url  # Contains link to original
         """
         # Fetch deck cards
-        deck_details = self.marvelcdb.get_deck_details(deck_id)
+        deck_list = self.marvelcdb.get_deck(deck_id)
         
-        if not deck_details:
+        if not deck_list:
             raise ValueError(f"No cards found for deck {deck_id}")
+        
+        deck = self.marvelcdb.get_cards_from_deck_list(deck_list) #TODO add deck_list to mongo
                 
         # Save deck
-        saved_deck = self.deck_repo.save(deck_details)
-        
+        saved_deck = self.deck_repo.save(deck)
         return saved_deck
     
     def get_deck(self, deck_id: str) -> Optional[Deck]:

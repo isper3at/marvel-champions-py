@@ -10,13 +10,13 @@ Responsibilities:
 """
 
 from typing import Optional, List
+import uuid
 import random
 from datetime import datetime
 
 from src.boundaries.repository import GameRepository, DeckRepository
-from src.entities import (
-    Game, GameState, GamePhase, Player, PlayZone
-)
+from src.gateways.marvelcdb_client import MarvelCDBClient
+from src.entities import Game, GamePhase, Player, PlayZone, EncounterDeck
 
 
 class LobbyInteractor:
@@ -25,7 +25,8 @@ class LobbyInteractor:
     def __init__(
         self,
         game_repository: GameRepository,
-        deck_repository: DeckRepository
+        deck_repository: DeckRepository,
+        marvelcdb_api: MarvelCDBClient
     ):
         self.game_repo = game_repository
         self.deck_repo = deck_repository
@@ -41,20 +42,17 @@ class LobbyInteractor:
         Returns:
             Created Game in LOBBY status
         """
-        # Create host as first player
+        # Create host as first player with UUID-based string ID
         host_player = Player(
-            username=host,
+            name=host,
             is_host=True,
             is_ready=False
         )
         
         game = Game(
-            id=None,
             name=name,
-            status=GamePhase.LOBBY,
             host=host,
-            players=(host_player,),
-            created_at=datetime.utcnow()
+            players=(host_player,)
         )
         
         return self.game_repo.save(game)
@@ -62,15 +60,22 @@ class LobbyInteractor:
     def list_lobbies(self) -> List[Game]:
         """Get all lobbies (games with status=LOBBY)"""
         all_games = self.game_repo.find_all()
-        return [g for g in all_games if g.status == GamePhase.LOBBY]
+        return [g for g in all_games if g.phase == GamePhase.LOBBY]
     
-    def get_lobby(self, game_id: str) -> Optional[Game]:
+    def get_lobby(self, game_id: uuid.UUID) -> Optional[Game]:
         """Get a lobby by ID"""
         game = self.game_repo.find_by_id(game_id)
         
-        if game and game.status == GamePhase.LOBBY:
+        if game and game.phase == GamePhase.LOBBY:
             return game
         
+        return None
+    
+    def _get_player_by_name(self, game: Game, name: str) -> Optional[Player]:
+        """Find a player in the game by name"""
+        for player in game.players:
+            if player.name == name:
+                return player
         return None
     
     def join_lobby(self, game_id: str, username: str) -> Game:
@@ -91,8 +96,19 @@ class LobbyInteractor:
         if not game:
             raise ValueError("Lobby not found or game already started")
         
+        # Check if player already in lobby
+        if self._get_player_by_name(game, username):
+            raise ValueError(f"Player {username} already in lobby")
+        
+        # Create new player
+        new_player = Player(
+            name=username,
+            is_host=False,
+            is_ready=False
+        )
+        
         # Add player
-        updated_game = game.add_player(username)
+        updated_game = game.add_player(new_player)
         
         return self.game_repo.save(updated_game)
     
@@ -111,15 +127,53 @@ class LobbyInteractor:
             return None
         
         # If host leaves or last player, delete lobby
-        if username == game.host or len(game.lobby_players) == 1:
-            self.game_repo.delete(game_id)
+        if username == game.host or len(game.players) == 1:
+            self.game_repo.delete(str(game.id))
             return None
         
-        # Remove player
-        updated_game = game.remove_player(username)
+        # Find and remove player
+        player = self._get_player_by_name(game, username)
+        if not player:
+            return game  # Player not in lobby, return unchanged
+        
+        updated_game = game.remove_player(player)
         
         return self.game_repo.save(updated_game)
     
+    def build_encounter_deck(self, module_names: List[str]) -> EncounterDeck:
+        """
+        Build a random encounter deck for the lobby.
+        
+        Args:
+            game_id: Lobby ID
+            deck_ids: List of encounter deck IDs to choose from
+        """
+        encounter_deck = None
+        for module_name in module_names:
+            if not encounter_deck:
+                encounter_deck = self.marvelcdb_api.get_module(module_name)
+            else:
+                encounter_deck = encounter_deck.join_encounter_deck(self.marvelcdb_api.get_module(module_name))
+            
+        return encounter_deck
+    
+    def set_encounter_deck(self, game_id: str, encounter_deck: EncounterDeck) -> Game:
+        """
+        Set the encounter deck for the lobby.
+        
+        Args:
+            game_id: Lobby ID
+            encounter_deck: Encounter deck to use.
+        """
+        game = self.get_lobby(game_id)
+        if not game:
+            raise ValueError("Lobby not found or game already started")
+
+        # Update encounter deck
+        updated_game = game.set_encounter_deck(encounter_deck)
+
+        return self.game_repo.save(updated_game)
+
     def choose_deck(self, game_id: str, username: str, deck_id: str) -> Game:
         """
         Choose a deck for a player.
@@ -141,44 +195,13 @@ class LobbyInteractor:
         if not deck:
             raise ValueError("Deck not found")
         
-        # Update player's deck
-        player = game.get_lobby_player(username)
+        # Find player and update with deck
+        player = self._get_player_by_name(game, username)
         if not player:
             raise ValueError("Player not in lobby")
         
-        updated_player = player.with_deck(deck_id)
-        updated_game = game.update_lobby_player(updated_player)
-        
-        return self.game_repo.save(updated_game)
-    
-    def set_encounter_deck(self, game_id: str, username: str, encounter_deck_id: str) -> Game:
-        """
-        Set the encounter deck (host only).
-        
-        Args:
-            game_id: Lobby ID
-            username: Username (must be host)
-            encounter_deck_id: Encounter deck to use
-            
-        Returns:
-            Updated Game
-        """
-        game = self.get_lobby(game_id)
-        if not game:
-            raise ValueError("Lobby not found")
-        
-        # Verify user is host
-        if username != game.host:
-            raise ValueError("Only host can set encounter deck")
-        
-        # Verify deck exists
-        deck = self.deck_repo.find_by_id(encounter_deck_id)
-        if not deck:
-            raise ValueError("Encounter deck not found")
-        
-        # Update game
-        from dataclasses import replace
-        updated_game = replace(game, encounter_deck_id=encounter_deck_id)
+        updated_player = player.play_deck(deck)
+        updated_game = game.update_player(updated_player)
         
         return self.game_repo.save(updated_game)
     
@@ -199,16 +222,16 @@ class LobbyInteractor:
         if not game:
             raise ValueError("Lobby not found")
         
-        player = game.get_lobby_player(username)
+        player = self._get_player_by_name(game, username)
         if not player:
             raise ValueError("Player not in lobby")
         
         # Cannot ready without a deck
-        if not player.deck_id and not player.is_ready:
+        if player.deck is None and not player.is_ready:
             raise ValueError("Choose a deck before readying up")
         
         updated_player = player.toggle_ready()
-        updated_game = game.update_lobby_player(updated_player)
+        updated_game = game.update_player(updated_player)
         
         return self.game_repo.save(updated_game)
     
@@ -217,7 +240,6 @@ class LobbyInteractor:
         Start the game (host only).
         
         Transitions from LOBBY to IN_PROGRESS.
-        Initializes game state with player decks.
         
         Args:
             game_id: Lobby ID
@@ -237,61 +259,21 @@ class LobbyInteractor:
         # Verify can start
         if not game.can_start():
             reasons = []
-            if not game.lobby_players:
+            if not game.players:
                 reasons.append("no players")
-            if not game.encounter_deck_id:
-                reasons.append("no encounter deck")
             if not game.all_players_ready():
                 reasons.append("not all players ready")
+            if not game.encounter_deck:
+                reasons.append("no encounter deck selected")
             
             raise ValueError(f"Cannot start game: {', '.join(reasons)}")
         
-        # Load and shuffle decks
-        player_zones = []
-        deck_ids = []
-        
-        for lobby_player in game.lobby_players:
-            # Load deck
-            deck_result = self.deck_repo.find_by_id(lobby_player.deck_id)
-            if not deck_result:
-                raise ValueError(f"Deck not found for {lobby_player.username}")
-            
-            deck = deck_result
-            deck_ids.append(lobby_player.deck_id)
-            
-            # Get card codes and shuffle
-            card_codes = deck.get_card_codes()
-            random.shuffle(card_codes)
-            
-            # Create player zones
-            zones = PlayZone(
-                player_name=lobby_player.username,
-                deck=tuple(card_codes),
-                hand=(),
-                discard=(),
-                removed=()
-            )
-            player_zones.append(zones)
-        
-        # Create initial game state
-        initial_state = GameState(
-            players=tuple(player_zones),
-            play_area=()
-        )
-        
-        # Update game to IN_PROGRESS
-        from dataclasses import replace
-        started_game = replace(
-            game,
-            status=GamePhase.IN_PROGRESS,
-            deck_ids=tuple(deck_ids),
-            state=initial_state,
-            updated_at=datetime.utcnow()
-        )
+        # Start the game
+        started_game = game.start_game()
         
         return self.game_repo.save(started_game)
-    
-    def delete_lobby(self, game_id: str, username: str) -> bool:
+
+    def delete_lobby(self, game_id: uuid.UUID, username: str) -> bool:
         """
         Delete a lobby (host only).
         
@@ -310,4 +292,4 @@ class LobbyInteractor:
         if username != game.host:
             raise ValueError("Only host can delete lobby")
         
-        return self.game_repo.delete(game_id)
+        return self.game_repo.delete(game.id)

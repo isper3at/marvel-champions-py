@@ -73,7 +73,7 @@ class CardInPlay:
             counters=self.counters
         )
         
-    def flip(self, flipped: bool) -> 'CardInPlay':
+    def flip(self) -> 'CardInPlay':
         """Return new instance with updated flip state"""
         new_position = self.position.flip()
         return CardInPlay(

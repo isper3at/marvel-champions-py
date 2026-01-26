@@ -6,7 +6,7 @@ file storage, and MongoDB redundancy.
 import logging
 import sys
 import os
-from datetime import datetime
+import datetime
 from enum import Enum
 from typing import Optional, Dict, Any
 import json
@@ -130,7 +130,7 @@ class LoggingService:
         # Buffer for MongoDB
         if self.db:
             log_entry = {
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.datetime.utcnow(datetime.UTC),
                 'session_id': self.session_id,
                 'level': level.name,
                 'message': message,

@@ -15,12 +15,15 @@ Endpoints:
 - POST /api/games/<id>/counter - Add counter to card
 """
 
+import uuid
 from flask import jsonify, request
 from src.controllers import game_bp
 from src.middleware import audit_endpoint
 from src.interactors import GameInteractor
 from src.entities import Position
 import logging
+
+from src.repositories.serializers import GameSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +50,7 @@ def list_games():
                 {
                     'id': game.id,
                     'name': game.name,
-                    'players': [p.player_name for p in game.state.players],
+                    'players': [p.name for p in game.players],
                     'created_at': game.created_at.isoformat() if game.created_at else None
                 }
                 for game in games
@@ -76,7 +79,7 @@ def list_recent_games():
                 {
                     'id': game.id,
                     'name': game.name,
-                    'players': [p.player_name for p in game.state.players],
+                    'players': [p.name for p in game.players],
                     'created_at': game.created_at.isoformat() if game.created_at else None
                 }
                 for game in games
@@ -94,40 +97,15 @@ def list_recent_games():
 def get_game(game_id: str):
     """Get full game state"""
     try:
+        uuid_id = uuid.UUID(game_id)
         logger.info(f"Fetching game: {game_id}")
         
-        game = _game_interactor.get_game(game_id)
+        game = _game_interactor.get_game(uuid_id)
         
         if not game:
             return jsonify({'error': 'Game not found'}), 404
         
-        return jsonify({
-            'id': game.id,
-            'name': game.name,
-            'deck_ids': list(game.deck_ids),
-            'state': {
-                'players': [
-                    {
-                        'player_name': p.player_name,
-                        'deck_size': len(p.deck),
-                        'hand_size': len(p.hand),
-                        'discard_size': len(p.discard),
-                        'hand': list(p.hand)  # Reveal hand to client
-                    }
-                    for p in game.state.players
-                ],
-                'play_area': [
-                    {
-                        'code': card.code,
-                        'position': {'x': card.position.x, 'y': card.position.y},
-                        'rotated': card.rotated,
-                        'flipped': card.flipped,
-                        'counters': card.counters
-                    }
-                    for card in game.state.play_area
-                ]
-            }
-        })
+        return jsonify(GameSerializer.to_doc(game))
         
     except Exception as e:
         logger.error(f"Error fetching game {game_id}: {e}", exc_info=True)
@@ -159,7 +137,7 @@ def create_game():
             'game': {
                 'id': game.id,
                 'name': game.name,
-                'players': [p.player_name for p in game.state.players]
+                'players': [p.name for p in game.players]
             }
         }), 201
         

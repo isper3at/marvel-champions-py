@@ -1,10 +1,13 @@
 from typing import Optional, List
 from pymongo.database import Database
-from datetime import datetime
 from bson.objectid import ObjectId
 from src.boundaries.repository import DeckRepository
 from src.entities import Deck, DeckCard
+import datetime
 
+from src.entities.encounter_deck import EncounterDeck
+
+from .serializers import DeckSerializer, EncounterDeckSerializer
 
 class MongoDeckRepository(DeckRepository):
     """MongoDB implementation of DeckRepository"""
@@ -13,43 +16,58 @@ class MongoDeckRepository(DeckRepository):
         if 'decks' not in db.list_collection_names():
             db.create_collection('decks', capped=False)
         self.collection = db['decks']
-        self.collection.create_index('updated_at')
+        self.collection.create_index('deck_id')
         self.collection.create_index('name')
     
     def find_by_id(self, deck_id: str) -> Optional[Deck]:
         """Find a deck by its ID"""
         try:
-            doc = self.collection.find_one({'_id': ObjectId(deck_id)})
-            return self._to_entity(doc) if doc else None
+            doc = self.collection.find_one({'deck_id': deck_id})
+            return DeckSerializer.to_entity(doc) if doc else None
         except Exception:
             return None
     
     def find_by_marvelcdb_id(self, marvelcdb_id: str) -> Optional[Deck]:
         """Find a deck by its MarvelCDB ID"""
         doc = self.collection.find_one({'source_url': {'$regex': f'/decklist/{marvelcdb_id}$'}})
-        return self._to_entity(doc) if doc else None
+        return DeckSerializer.to_entity(doc) if doc else None
     
     def save(self, deck: Deck) -> Deck:
         """Save a deck and return the saved entity"""
-        doc = self._to_document(deck)
-        doc['updated_at'] = datetime.utcnow()
+        doc = DeckSerializer.to_doc(deck)
+        doc['updated_at'] = datetime.datetime.now(datetime.UTC)
         
-        if deck.id:
-            # Update existing deck
-            self.collection.update_one(
-                {'_id': ObjectId(deck.id)},
-                {'$set': doc}
-            )
-            return self.find_by_id(deck.id)
-        else:
-            # Insert new deck
-            result = self.collection.insert_one(doc)
-            return self.find_by_id(str(result.inserted_id))
+        self.collection.update_one(
+            {'deck_id': deck.id},
+            {'$set': doc},
+            True
+        )
+        return self.find_by_id(deck.id)
+    
+    def save_encounter_deck(self, deck: EncounterDeck) -> EncounterDeck:
+        """Save an encounter deck and return the saved entity"""
+        doc = EncounterDeckSerializer.to_doc(deck)
+        doc['updated_at'] = datetime.datetime.now(datetime.UTC)
+        
+        self.collection.update_one(
+            {'deck_id': deck.id},
+            {'$set': doc},
+            True
+        )
+        return self.find_encounter_deck_by_id(deck.id)
+    
+    def find_encounter_deck_by_id(self, deck_id: str) -> EncounterDeck:
+        """Find an encounter deck by its ID"""
+        try:
+            doc = self.collection.find_one({'deck_id': deck_id})
+            return EncounterDeckSerializer.to_entity(doc) if doc else None
+        except Exception:
+            return None
     
     def delete(self, deck_id: str) -> bool:
         """Delete a deck by ID"""
         try:
-            result = self.collection.delete_one({'_id': ObjectId(deck_id)})
+            result = self.collection.delete_one({'deck_id': deck_id})
             return result.deleted_count > 0
         except Exception:
             return False
@@ -57,39 +75,4 @@ class MongoDeckRepository(DeckRepository):
     def find_all(self) -> List[Deck]:
         """Find all decks"""
         docs = self.collection.find().sort('updated_at', -1)
-        return [self._to_entity(doc) for doc in docs]
-    
-    def _to_entity(self, doc: dict) -> Deck:
-        """Convert MongoDB document to Deck entity"""
-        cards = tuple(
-            DeckCard(code=c['code'], quantity=c['quantity'])
-            for c in doc['cards']
-        )
-        
-        return Deck(
-            id=str(doc['_id']),
-            name=doc['name'],
-            cards=cards,
-            source_url=doc.get('source_url'),
-            created_at=doc.get('created_at'),
-            updated_at=doc.get('updated_at')
-        )
-    
-    def _to_document(self, deck: Deck) -> dict:
-        """Convert Deck entity to MongoDB document"""
-        doc = {
-            'name': deck.name,
-            'cards': [
-                {'code': c.code, 'quantity': c.quantity}
-                for c in deck.cards
-            ],
-            'created_at': deck.created_at or datetime.utcnow()
-        }
-        
-        if deck.source_url:
-            doc['source_url'] = deck.source_url
-        
-        if deck.id:
-            doc['_id'] = ObjectId(deck.id)
-        
-        return doc
+        return [DeckSerializer.to_entity(doc) for doc in docs]

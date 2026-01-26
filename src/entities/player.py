@@ -20,7 +20,6 @@ class Player:
         name: Display name for the player
         deck: Optional deck assigned to the player
     """
-    id: str
     name: str
     is_host: bool = False
     is_ready: bool = False
@@ -30,30 +29,27 @@ class Player:
     discard_pile: Optional[List[Card]] = None
     
     def __post_init__(self):
-        if not self.id:
-            raise ValueError("ID cannot be empty")
         if not self.name:
             raise ValueError("Name cannot be empty")
     
     def toggle_ready(self) -> 'Player':
         """Toggle ready state (lobby only)"""
         return Player(
-            id=self.id,
             name=self.name,
             is_host=self.is_host,
-            deck_id=self.deck_id,
             is_ready=not self.is_ready,
-            deck_in_play=self.deck_in_play
+            deck=self.deck,
+            hand=self.hand,
+            discard_pile=self.discard_pile
         )
-    
+
     def is_ready_to_start(self) -> bool:
         """Check if ready to start game (lobby only)"""
-        return self.deck_id is not None and self.is_ready
+        return self.deck is not None and self.is_ready
     
     def play_deck(self, deck: Deck) -> 'Player':
         """Assign a deck in play to the player (game start)"""
         return Player(
-            id=self.id,
             name=self.name,
             is_host=self.is_host,
             is_ready=self.is_ready,

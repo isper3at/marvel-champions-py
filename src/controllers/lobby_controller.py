@@ -55,7 +55,7 @@ def create_lobby():
             'lobby': {
                 'id': game.id,
                 'name': game.name,
-                'status': game.status.value,
+                'status': game.phase.value,
                 'host': game.host,
                 'players': [
                     {
@@ -120,7 +120,7 @@ def get_lobby(lobby_id: str):
         return jsonify({
             'id': game.id,
             'name': game.name,
-            'status': game.status.value,
+            'status': game.phase.value,
             'host': game.host,
             'players': [
                 {
@@ -332,12 +332,12 @@ def start_game(lobby_id: str):
         
         game = _lobby_interactor.start_game(lobby_id, data['username'])
         
-        logger.info(f"Game started: {game.id} (status: {game.status.value})")
+        logger.info(f"Game started: {game.id} (status: {game.phase.value})")
         
         return jsonify({
             'success': True,
             'game_id': game.id,
-            'status': game.status.value,
+            'status': game.phase.value,
             'players': [p.player_name for p in game.state.players]
         })
         

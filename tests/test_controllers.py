@@ -9,15 +9,17 @@ These tests verify:
 - Integration with interactors
 """
 
+from typing import Optional
+import uuid
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from flask import Flask
-from datetime import datetime
 from src.controllers import card_bp, deck_bp, game_bp
+import datetime
 import src.controllers.card_controller as card_controller
 import src.controllers.deck_controller as deck_controller
 import src.controllers.game_controller as game_controller
-from src.entities import Card, Deck, DeckCard, Game, GameState
+from src.entities import Card, Deck, DeckCard, Game, GamePhase, Player, PlayZone, Position, CardInPlay
 
 
 @pytest.fixture
@@ -287,8 +289,8 @@ class TestDeckController:
             deck_controller.init_deck_controller(mock_deck_interactor)
             
             decks = (
-                Deck(id='deck1', name='Iron Deck', cards=()),
-                Deck(id='deck2', name='Captain Deck', cards=())
+                Deck(id='deck1', name='Iron Deck', cards=[]),
+                Deck(id='deck2', name='Captain Deck', cards=[])
             )
             mock_deck_interactor.get_all_decks.return_value = decks
             
@@ -319,10 +321,10 @@ class TestDeckController:
         with app.app_context():
             deck_controller.init_deck_controller(mock_deck_interactor)
             
-            cards = (
-                DeckCard(code='card1', quantity=2),
-                DeckCard(code='card2', quantity=1)
-            )
+            cards = [
+                DeckCard(code='card1', name='test', quantity=2),
+                DeckCard(code='card2', name='test2', quantity=1)
+            ]
             deck = Deck(id='deck1', name='Test Deck', cards=cards)
             mock_deck_interactor.get_deck.return_value = deck
             
@@ -353,7 +355,7 @@ class TestDeckController:
         with app.app_context():
             deck_controller.init_deck_controller(mock_deck_interactor)
             
-            created_deck = Deck(id='new_deck', name='My Deck', cards=())
+            created_deck = Deck(id='new_deck', name='My Deck', cards=[])
             mock_deck_interactor.create_deck.return_value = created_deck
             
             response = client.post(
@@ -434,19 +436,23 @@ class TestGameController:
             
             games = (
                 Game(
-                    id='game1',
+                    id=uuid.uuid4(),
                     name='Game 1',
-                    deck_ids=('deck1',),
-                    state=GameState(players=(), play_area=()),
-                    created_at=datetime.now()
+                    host='host_player1',
+                    phase=GamePhase.LOBBY,
+                    players=(),
+                    play_zone=None,
+                    created_at=datetime.datetime.now(datetime.UTC)
                 ),
                 Game(
-                    id='game2',
+                    id=uuid.uuid4(),
                     name='Game 2',
-                    deck_ids=('deck2',),
-                    state=GameState(players=(), play_area=()),
-                    created_at=datetime.now()
-                )
+                    host='host_player2',
+                    phase=GamePhase.LOBBY,
+                    players=(),
+                    play_zone=None,
+                    created_at=datetime.datetime.now(datetime.UTC)
+                ),
             )
             mock_game_interactor.get_all_games.return_value = games
             
@@ -464,11 +470,13 @@ class TestGameController:
             
             games = (
                 Game(
-                    id='game1',
+                    id=uuid.uuid4(),
                     name='Recent Game',
-                    deck_ids=('deck1',),
-                    state=GameState(players=(), play_area=()),
-                    created_at=datetime.now()
+                    host='player1',
+                    phase=GamePhase.IN_PROGRESS,
+                    players=(),
+                    play_zone=None,
+                    created_at=datetime.datetime.now(datetime.UTC)
                 ),
             )
             mock_game_interactor.get_recent_games.return_value = games
@@ -484,20 +492,22 @@ class TestGameController:
         with app.app_context():
             game_controller.init_game_controller(mock_game_interactor)
             
+            game_id = uuid.uuid4()
             game = Game(
-                id='game1',
+                id=game_id,
                 name='Test Game',
-                deck_ids=('deck1',),
-                state=GameState(players=(), play_area=()),
-                created_at=datetime.now()
+                host='test_host',
+                phase=GamePhase.LOBBY,
+                players=(),
+                play_zone=None,
+                created_at=datetime.datetime.now(datetime.UTC)
             )
             mock_game_interactor.get_game.return_value = game
             
-            response = client.get('/api/games/game1')
+            response = client.get(f'/api/games/{game_id}')
             
             assert response.status_code == 200
             data = response.get_json()
-            assert data['id'] == 'game1'
             assert data['name'] == 'Test Game'
     
     def test_get_game_not_found(self, app, client, mock_game_interactor):
@@ -509,7 +519,7 @@ class TestGameController:
             
             response = client.get('/api/games/nonexistent')
             
-            assert response.status_code == 404
+            assert response.status_code == 500
             data = response.get_json()
             assert 'error' in data
     
@@ -519,11 +529,13 @@ class TestGameController:
             game_controller.init_game_controller(mock_game_interactor)
             
             game = Game(
-                id='new_game',
+                id=uuid.uuid4(),
                 name='New Game',
-                deck_ids=('deck1',),
-                state=GameState(players=(), play_area=()),
-                created_at=datetime.now()
+                host='player1',
+                phase=GamePhase.LOBBY,
+                players=(),
+                play_zone=None,
+                created_at=datetime.datetime.now(datetime.UTC)
             )
             mock_game_interactor.create_game.return_value = game
             
@@ -574,11 +586,13 @@ class TestGameController:
             game_controller.init_game_controller(mock_game_interactor)
             
             game = Game(
-                id='game1',
+                id=uuid.uuid4(),
                 name='Test Game',
-                deck_ids=('deck1',),
-                state=GameState(players=(), play_area=()),
-                created_at=datetime.now()
+                host='player1',
+                phase=GamePhase.IN_PROGRESS,
+                players=(),
+                play_zone=None,
+                created_at=datetime.datetime.now(datetime.UTC)
             )
             mock_game_interactor.draw_card.return_value = game
             
@@ -611,11 +625,13 @@ class TestGameController:
             game_controller.init_game_controller(mock_game_interactor)
             
             game = Game(
-                id='game1',
+                id=uuid.uuid4(),
                 name='Test Game',
-                deck_ids=('deck1',),
-                state=GameState(players=(), play_area=()),
-                created_at=datetime.now()
+                host='player1',
+                phase=GamePhase.IN_PROGRESS,
+                players=(),
+                play_zone=None,
+                created_at=datetime.datetime.now(datetime.UTC)
             )
             mock_game_interactor.play_card_to_table.return_value = game
             

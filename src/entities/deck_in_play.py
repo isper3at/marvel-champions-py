@@ -7,9 +7,6 @@ from .position import Position
 
 @dataclass(frozen=True)
 class DeckInPlay:
-    """
-    TODO doc
-    """
     deck: Deck  # The deck being played
     draw_position: Position  # Position of the draw pile on the play field
     discard_position: Position  # Position of the discard pile on the play field

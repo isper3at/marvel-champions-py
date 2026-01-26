@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List
+import uuid
 from src.entities import Card, Deck, Game
 
 
@@ -74,7 +75,7 @@ class GameRepository(ABC):
     """Repository interface for Game entity"""
     
     @abstractmethod
-    def find_by_id(self, game_id: str) -> Optional[Game]:
+    def find_by_id(self, game_id: uuid.UUID) -> Optional[Game]:
         """Find a game by its ID"""
         pass
     

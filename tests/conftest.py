@@ -20,7 +20,7 @@ def test_config():
 @pytest.fixture
 def test_db():
     """Create test database connection"""
-    client = MongoClient('mongodb://localhost:27017/')
+    client = MongoClient('mongodb://localhost:27017/', uuidRepresentation='standard')
     db = client['marvel_champions_test']
     
     yield db
@@ -28,6 +28,18 @@ def test_db():
     # Cleanup: drop all collections after each test
     for collection in db.list_collection_names():
         db[collection].drop()
+
+@pytest.fixture
+def test_marvel_client():
+    """Create MarvelCDBClient with test config"""
+    config = MarvelCDBConfig(
+        base_url='https://marvelcdb.com',
+        rate_limit_calls=10,
+        rate_limit_period=60,
+        request_delay=0.1  # Faster for tests
+    )
+    from src.gateways.marvelcdb_client import MarvelCDBClient
+    return MarvelCDBClient(config)
 
 
 @pytest.fixture

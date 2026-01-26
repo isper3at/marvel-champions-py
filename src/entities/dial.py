@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from src.entities.position import Position
 
 @dataclass(frozen=True)
 class Dial:
@@ -11,6 +12,7 @@ class Dial:
         max_value: Maximum value of the dial
     """
     value: int
+    position: Position
 
     def __post_init__(self):
         if not (self.min_value <= self.value <= self.max_value):
