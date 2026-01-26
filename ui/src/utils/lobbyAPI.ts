@@ -1,24 +1,12 @@
 /**
  * API utility functions for lobby operations
- * Add these to your existing ui/src/utils/api.ts file
  */
 
-import axios, { AxiosInstance } from 'axios';
+import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 class LobbyAPI {
-  private client: AxiosInstance;
-
-  constructor() {
-    this.client = axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  }
-
   /**
    * Create a new lobby
    */
@@ -117,7 +105,7 @@ class LobbyAPI {
     });
     return response.data;
   }
-};
+}
 
 export const deckAPI = {
   /**
@@ -159,11 +147,11 @@ export const gameAPI = {
   /**
    * Play a card to the table
    */
-  async playCard(gameId: string, playerName: string, cardCode: string, zone: string) {
+  async playCard(gameId: string, playerName: string, cardCode: string) {
     const response = await axios.post(`${API_BASE_URL}/api/games/${gameId}/play`, {
       player_name: playerName,
       card_code: cardCode,
-      x: 400, // Default position
+      x: 400,
       y: 300,
     });
     return response.data;
@@ -173,7 +161,6 @@ export const gameAPI = {
    * Draw encounter card
    */
   async drawEncounterCard(gameId: string) {
-    // This endpoint may need to be added to your backend
     const response = await axios.post(`${API_BASE_URL}/api/games/${gameId}/encounter/draw`);
     return response.data;
   },
@@ -182,7 +169,6 @@ export const gameAPI = {
    * Shuffle encounter discard
    */
   async shuffleEncounterDiscard(gameId: string) {
-    // This endpoint may need to be added to your backend
     const response = await axios.post(`${API_BASE_URL}/api/games/${gameId}/encounter/shuffle`);
     return response.data;
   },

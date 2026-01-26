@@ -1,0 +1,104 @@
+.interactive-card {
+  position: absolute;
+  cursor: move;
+  transition: filter 0.2s ease;
+}
+
+.interactive-card:hover {
+  filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.5));
+}
+
+.interactive-card.selected {
+  filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.8));
+}
+
+.rotation-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 215, 0, 0.3);
+  border: 2px solid #ffd700;
+  border-radius: 50%;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: grab;
+}
+
+.rotation-handle:active {
+  cursor: grabbing;
+}
+
+/* Context Menu */
+.context-menu {
+  position: fixed;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  font-size: 14px;
+  color: #333;
+}
+
+.menu-item:hover {
+  background: rgba(255, 215, 0, 0.1);
+  color: #1a1a2e;
+}
+
+/* Examine Modal */
+.examine-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+}
+
+.examine-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.examine-card {
+  transform: scale(2) !important;
+}
+
+.examine-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.examine-close:hover {
+  color: #ffd700;
+}
+
+.examine-help {
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 24px;
+  font-size: 12px;
+  text-align: center;
+}

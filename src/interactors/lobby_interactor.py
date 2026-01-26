@@ -30,6 +30,7 @@ class LobbyInteractor:
     ):
         self.game_repo = game_repository
         self.deck_repo = deck_repository
+        self.marvelcdb_api = marvelcdb_api
     
     def create_lobby(self, name: str, host: str) -> Game:
         """

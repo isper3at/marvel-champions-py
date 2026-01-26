@@ -1,9 +1,7 @@
 """
 MongoDB implementation of GameRepository
 """
-import logging
 from typing import Optional, List
-from flask import logging
 import uuid
 from pymongo.database import Database
 from src.boundaries.repository import GameRepository
@@ -45,8 +43,6 @@ class MongoGameRepository(GameRepository):
     def delete(self, game_id: uuid.UUID) -> bool:
         """Delete a game by ID"""
         try:
-            print(f"Deleting game with ID: {game_id}")
-            print(f"Found {self.collection.count_documents({'_id': game_id})} documents.")
             result = self.collection.delete_one({'_id': game_id})
             return result.deleted_count > 0
         except Exception:

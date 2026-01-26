@@ -1,72 +1,63 @@
 /**
- * Card component - Displays individual cards with hover effects
+ * Card Component - Used in PlayerHand
+ * Displays a card with front and back images
+ * Handles flip animation via 3D CSS
  */
 
-import React, { useState } from 'react';
-import { Card as CardType, CardInPlay } from '../types';
+import React from 'react';
 import '../styles/Card.css';
 
-interface CardProps {
-  card: CardType | CardInPlay;
-  isInPlay?: boolean;
-  faceDown?: boolean;
-  onDragStart?: (e: React.DragEvent) => void;
-  onClick?: () => void;
+export interface CardProps {
+  code: string;
+  name: string;
+  frontImage: string;
+  backImage: string;
+  isFlipped?: boolean;
+  onFlip?: () => void;
   className?: string;
-  style?: React.CSSProperties;
 }
 
 export const Card: React.FC<CardProps> = ({
-  card,
-  isInPlay = false,
-  faceDown = false,
-  onDragStart,
-  onClick,
+  code,
+  name,
+  frontImage,
+  backImage,
+  isFlipped = false,
+  onFlip,
   className = '',
-  style = {},
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  const cardData = card as CardType;
-  const inPlayData = card as CardInPlay;
-
   return (
     <div
-      className={`card ${faceDown ? 'face-down' : ''} ${className}`}
-      draggable
-      onDragStart={onDragStart}
-      onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      style={{
-        ...style,
-        transform: isHovered && !isInPlay ? 'translateY(-20px)' : '',
-        zIndex: isHovered ? 1000 : 'auto',
-      }}
+      className={`card ${className}`}
+      onClick={onFlip}
+      style={{ perspective: '1000px' }}
     >
-      {faceDown ? (
-        <div className="card-back">
-          <div className="card-back-pattern" />
+      <div
+        className={`card-inner ${isFlipped ? 'flipped' : ''}`}
+        style={{
+          transformStyle: 'preserve-3d',
+          transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+        }}
+      >
+        {/* Front Face */}
+        <div className="card-face card-front" style={{ backfaceVisibility: 'hidden' }}>
+          <img src={frontImage} alt={name} className="card-image" />
+          <div className="card-label">{code}</div>
         </div>
-      ) : (
-        <div className="card-front">
-          <div className="card-image">
-            {cardData.image_url && (
-              <img src={cardData.image_url} alt={cardData.name} />
-            )}
-          </div>
-          <div className="card-info">
-            <h3 className="card-name">{cardData.name}</h3>
-            <p className="card-text">{cardData.text}</p>
-          </div>
-          {isInPlay && inPlayData.counter !== undefined && (
-            <div className="card-counter">{inPlayData.counter}</div>
-          )}
-          {isInPlay && inPlayData.rotated && (
-            <div className="card-rotated-indicator">↻</div>
-          )}
+
+        {/* Back Face */}
+        <div
+          className="card-face card-back"
+          style={{
+            backfaceVisibility: 'hidden',
+            transform: 'rotateY(180deg)',
+          }}
+        >
+          <img src={backImage} alt="Card back" className="card-image" />
         </div>
-      )}
+      </div>
     </div>
   );
 };
+
+export default Card;

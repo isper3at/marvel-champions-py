@@ -155,7 +155,7 @@ def create_app(config_override=None):
             marvelcdb_gateway
         )
         game_interactor = GameInteractor(game_repo, card_repo)
-        lobby_interactor = LobbyInteractor(game_repo, deck_repo)
+        lobby_interactor = LobbyInteractor(game_repo, deck_repo, marvelcdb_gateway)
         
         logger.info("✓ Interactors initialized")
         logger.info("  - CardInteractor")

@@ -1,6 +1,5 @@
 from typing import Optional, List
 from pymongo.database import Database
-from bson.objectid import ObjectId
 from src.boundaries.repository import DeckRepository
 from src.entities import Deck, DeckCard
 import datetime
