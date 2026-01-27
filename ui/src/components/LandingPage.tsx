@@ -16,22 +16,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onHost, onJoin }) => {
 
   const handleHostClick = () => {
     if (playerName.trim()) {
-      setMode('host');
+      onHost(playerName);
     }
   };
 
   const handleJoinClick = () => {
     if (playerName.trim()) {
-      setMode('join');
+      onJoin(playerName);
     }
-  };
-
-  const handleConfirmHost = () => {
-    onHost(playerName);
-  };
-
-  const handleConfirmJoin = () => {
-    onJoin(playerName);
   };
 
   const handleBack = () => {
@@ -50,7 +42,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onHost, onJoin }) => {
               <input
                 id="player-name"
                 type="text"
-                placeholder="Hero Name"
+                placeholder="Player Name"
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
                 onKeyPress={(e) => {
@@ -89,12 +81,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onHost, onJoin }) => {
               ← Back
             </button>
             {mode === 'host' && (
-              <button className="btn btn-primary" onClick={handleConfirmHost}>
+              <button className="btn btn-primary" onClick={handleHostClick}>
                 Proceed to Host
               </button>
             )}
             {mode === 'join' && (
-              <button className="btn btn-primary" onClick={handleConfirmJoin}>
+              <button className="btn btn-primary" onClick={handleJoinClick}>
                 Find Games
               </button>
             )}
