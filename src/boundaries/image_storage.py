@@ -1,3 +1,4 @@
+from PIL import Image
 from abc import ABC, abstractmethod
 from typing import Optional, List
 
@@ -9,13 +10,13 @@ class ImageStorage(ABC):
     """
     
     @abstractmethod
-    def save_image(self, card_code: str, image_data: bytes) -> str:
+    def save_image(self, card_code: str, card_image: Image.Image) -> str:
         """
         Save card image and return the file path/URL.
         
         Args:
             card_code: Unique card identifier
-            image_data: Binary image data
+            card_image: The card image
             
         Returns:
             Path or URL to the saved image
@@ -23,7 +24,7 @@ class ImageStorage(ABC):
         pass
     
     @abstractmethod
-    def get_image_path(self, card_code: str) -> Optional[str]:
+    def get_image(self, card_code: str) -> Optional[Image.Image]:
         """
         Get the path/URL for a card image if it exists.
         
@@ -31,7 +32,7 @@ class ImageStorage(ABC):
             card_code: Unique card identifier
             
         Returns:
-            Path or URL to the image, or None if not found
+            The found Image, or None if not found
         """
         pass
     
