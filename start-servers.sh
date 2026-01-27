@@ -72,8 +72,8 @@ start_backend() {
     
     # Determine Python executable
     local python_exe="python3"
-    if [ -f "$SCRIPT_DIR/venv/bin/python" ]; then
-        python_exe="$SCRIPT_DIR/venv/bin/python"
+    if [ -f "$SCRIPT_DIR/venv/bin/python3" ]; then
+        python_exe="$SCRIPT_DIR/venv/bin/python3"
     fi
     
     # Check if Python is available
@@ -140,7 +140,7 @@ start_frontend() {
     
     # Start frontend in background
     cd "$SCRIPT_DIR/ui"
-    REACT_APP_API_URL="http://localhost:$BACKEND_PORT/api" npm start > ../logs/frontend.log 2>&1 &
+    REACT_APP_API_URL="http://localhost:$BACKEND_PORT" npm start > ../logs/frontend.log 2>&1 &
     local frontend_pid=$!
     
     # Wait for frontend to start

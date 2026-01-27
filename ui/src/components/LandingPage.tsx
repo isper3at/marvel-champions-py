@@ -1,5 +1,6 @@
 /**
  * Landing page - Player enters name and chooses to join or host
+ * Updated to navigate to GameCreation view
  */
 
 import React, { useState } from 'react';
@@ -12,22 +13,30 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onHost, onJoin }) => {
   const [playerName, setPlayerName] = useState<string>('');
-  const [mode, setMode] = useState<'select' | 'host' | 'join'>('select');
+  const [error, setError] = useState<string>('');
 
   const handleHostClick = () => {
-    if (playerName.trim()) {
-      onHost(playerName);
+    if (!playerName.trim()) {
+      setError('Please enter your name');
+      return;
     }
+    setError('');
+    onHost(playerName.trim());
   };
 
   const handleJoinClick = () => {
-    if (playerName.trim()) {
-      onJoin(playerName);
+    if (!playerName.trim()) {
+      setError('Please enter your name');
+      return;
     }
+    setError('');
+    onJoin(playerName.trim());
   };
 
-  const handleBack = () => {
-    setMode('select');
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && playerName.trim()) {
+      handleHostClick();
+    }
   };
 
   return (
@@ -35,64 +44,41 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onHost, onJoin }) => {
       <div className="landing-container">
         <h1>Marvel Champions</h1>
         
-        {mode === 'select' ? (
-          <div className="landing-content">
-            <div className="name-input-group">
-              <label htmlFor="player-name">Enter Your Name</label>
-              <input
-                id="player-name"
-                type="text"
-                placeholder="Player Name"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && playerName.trim()) {
-                    setMode('host');
-                  }
-                }}
-                autoFocus
-              />
-            </div>
+        <div className="landing-content">
+          <div className="name-input-group">
+            <label htmlFor="player-name">Enter Your Name</label>
+            <input
+              id="player-name"
+              type="text"
+              placeholder="Player Name"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              onKeyPress={handleKeyPress}
+              autoFocus
+            />
+            {error && <span className="input-error">{error}</span>}
+          </div>
 
-            <div className="button-group">
-              <button
-                className="btn btn-primary"
-                onClick={handleHostClick}
-                disabled={!playerName.trim()}
-              >
-                Host Game
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={handleJoinClick}
-                disabled={!playerName.trim()}
-              >
-                Join Game
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="landing-content">
-            <div className="mode-header">
-              <h2>Welcome, {playerName}!</h2>
-              <p>{mode === 'host' ? 'Create a new game' : 'Join an existing game'}</p>
-            </div>
-            <button className="btn btn-back" onClick={handleBack}>
-              ← Back
+          <div className="button-group">
+            <button
+              className="btn btn-primary"
+              onClick={handleHostClick}
+              disabled={!playerName.trim()}
+            >
+              Host Game
             </button>
-            {mode === 'host' && (
-              <button className="btn btn-primary" onClick={handleHostClick}>
-                Proceed to Host
-              </button>
-            )}
-            {mode === 'join' && (
-              <button className="btn btn-primary" onClick={handleJoinClick}>
-                Find Games
-              </button>
-            )}
+            <button
+              className="btn btn-secondary"
+              onClick={handleJoinClick}
+              disabled={!playerName.trim()}
+            >
+              Join Game
+            </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 };
+
+export default LandingPage;

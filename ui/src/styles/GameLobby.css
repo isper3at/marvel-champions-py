@@ -13,20 +13,20 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 40px;
-  max-width: 600px;
+  max-width: 800px;
   width: 100%;
   box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
 }
 
 .lobby-card h2 {
   color: #ffd700;
-  margin-bottom: 24px;
+  margin-bottom: 12px;
   font-size: 32px;
 }
 
 .lobby-card h3 {
   color: #ffffff;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   font-size: 18px;
 }
 
@@ -42,41 +42,11 @@
   margin-top: 8px;
 }
 
-.input-group {
-  margin-bottom: 24px;
-}
-
-.input-group label {
-  display: block;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 8px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.input-group input,
-.lobby-card select {
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+.loading {
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  padding: 40px 20px;
   font-size: 16px;
-  transition: all 0.3s ease;
-  box-sizing: border-box;
-}
-
-.input-group input:focus,
-.lobby-card select:focus {
-  outline: none;
-  border-color: #ffd700;
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
-}
-
-.input-group input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
 }
 
 .error-message {
@@ -89,77 +59,22 @@
   font-size: 14px;
 }
 
-.section {
-  margin-bottom: 32px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.section:last-of-type {
-  border-bottom: none;
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
   margin-bottom: 24px;
-  padding-bottom: 0;
 }
 
-.players-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.player-item {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 12px 16px;
-  border-radius: 6px;
-}
-
-.player-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.player-name {
-  color: #ffffff;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.badge {
-  background: rgba(255, 215, 0, 0.2);
-  color: #ffd700;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.status {
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.status.ready {
-  background: rgba(76, 175, 80, 0.2);
-  color: #4caf50;
-}
-
-.status.not-ready {
-  background: rgba(255, 152, 0, 0.2);
-  color: #ffa500;
-}
-
-.deck-name {
+.empty-state p {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  margin: 0;
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
+.empty-state .empty-hint {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 24px;
 }
 
 .lobbies-list {
@@ -167,33 +82,74 @@
   flex-direction: column;
   gap: 12px;
   margin-bottom: 24px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 8px;
 }
 
 .lobby-item {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 16px;
-  border-radius: 6px;
+  padding: 20px;
+  border-radius: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20px;
+  transition: all 0.3s ease;
+}
+
+.lobby-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateX(4px);
+}
+
+.lobby-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .lobby-info h3 {
-  margin: 0 0 4px 0;
-  font-size: 16px;
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #ffffff;
 }
 
-.lobby-info p {
+.lobby-meta {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+  font-size: 13px;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  margin: 0;
 }
 
-.button-group {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+.lobby-host,
+.lobby-players {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lobby-player-list {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lobby-actions {
+  flex-shrink: 0;
+}
+
+.lobby-footer {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .btn {
@@ -206,7 +162,6 @@
   transition: all 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 1px;
-  width: 100%;
 }
 
 .btn:disabled {
@@ -217,23 +172,11 @@
 .btn-primary {
   background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
   color: #1a1a2e;
-  margin-bottom: 12px;
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 4px 16px rgba(255, 215, 0, 0.4);
-}
-
-.btn-ready {
-  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
-  color: #ffffff;
-  margin-bottom: 12px;
-}
-
-.btn-ready:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(76, 175, 80, 0.4);
 }
 
 .btn-secondary {
@@ -247,51 +190,60 @@
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+.btn-refresh {
+  min-width: 150px;
+}
+
 .btn-back {
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  width: 100%;
 }
 
 .btn-back:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.15);
 }
 
-.loading {
-  color: rgba(255, 255, 255, 0.7);
-  text-align: center;
-  padding: 40px 20px;
-  font-size: 16px;
+/* Scrollbar styling for lobby list */
+.lobbies-list::-webkit-scrollbar {
+  width: 6px;
 }
 
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  margin-bottom: 24px;
+.lobbies-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
 }
 
-.empty-state p {
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 16px;
+.lobbies-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.3);
+  border-radius: 3px;
 }
 
-.host-section {
-  background: rgba(255, 215, 0, 0.1);
-  border: 1px solid rgba(255, 215, 0, 0.3);
-  border-radius: 6px;
-  padding: 16px;
+.lobbies-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 215, 0, 0.5);
 }
 
-.help-text {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  margin-top: 12px;
-}
+@media (max-width: 768px) {
+  .lobby-card {
+    padding: 30px 20px;
+  }
 
-.button-group .btn {
-  margin-bottom: 0;
-}
+  .lobby-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
-.button-group .btn:not(:last-child) {
-  margin-right: 0;
+  .lobby-actions {
+    width: 100%;
+  }
+
+  .lobby-actions .btn {
+    width: 100%;
+  }
+
+  .lobby-meta {
+    flex-direction: column;
+    gap: 4px;
+  }
 }

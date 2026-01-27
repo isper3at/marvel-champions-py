@@ -252,26 +252,30 @@ def import_deck():
         return jsonify({'error': str(e)}), 500
 
 
-@deck_bp.route('/marvelcdb/mine', methods=['GET'])
-@audit_endpoint('get_marvelcdb_decks')
-def get_marvelcdb_decks():
-    """Get user's decks from MarvelCDB"""
-    # Expect session cookie in request
-    cookie = request.headers.get('X-MarvelCDB-Cookie')
-    
-    if not cookie:
-        return jsonify({'error': 'MarvelCDB session cookie required'}), 400
-    
+@deck_bp.route('/marvelcdb/<deck_id>', methods=['GET'])
+@audit_endpoint('get_marvelcdb_deck')
+def get_marvelcdb_deck(deck_id: str):
+    """Get deck details from MarvelCDB by deck ID"""
     try:
-        logger.info("Fetching user's MarvelCDB decks")
+        logger.info(f"Fetching deck from MarvelCDB: {deck_id}")
         
-        decks = _deck_interactor.get_user_decks_from_marvelcdb(cookie)
+        deck_list = _deck_interactor.get_deck_from_marvelcdb(deck_id)
         
         return jsonify({
-            'decks': decks,
-            'count': len(decks)
+            'id': deck_id,
+            'name': deck_list.name,
+            'cards': [
+                {
+                    'code': card.code,
+                    'name': card.name,
+                    'quantity': card.quantity
+                }
+                for card in deck_list.cards
+            ],
+            'card_count': deck_list.card_count(),
+            'source_url': f"https://marvelcdb.com/decklist/view/{deck_id}"
         })
         
     except Exception as e:
-        logger.error(f"Error fetching MarvelCDB decks: {e}", exc_info=True)
+        logger.error(f"Error fetching deck {deck_id} from MarvelCDB: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500

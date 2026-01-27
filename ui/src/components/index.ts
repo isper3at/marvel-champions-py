@@ -5,6 +5,7 @@
 
 export { GameBoard } from './GameBoard';
 export { GameLobby } from './GameLobby';
+export { GameCreation } from './GameCreation';
 export { LandingPage } from './LandingPage';
 export { Card } from './Card';
 export { InteractiveCard, createInteractiveCard } from './InteractiveCard';

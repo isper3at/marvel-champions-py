@@ -64,26 +64,17 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+.input-error {
+  color: #ff6b6b;
+  font-size: 13px;
+  margin-top: -4px;
+  padding-left: 4px;
+}
+
 .button-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-}
-
-.mode-header {
-  text-align: center;
-  margin-bottom: 12px;
-}
-
-.mode-header h2 {
-  color: #ffd700;
-  font-size: 24px;
-  margin-bottom: 8px;
-}
-
-.mode-header p {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
 }
 
 .btn {
@@ -124,12 +115,74 @@
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
 }
 
-.btn-back {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  margin-bottom: 12px;
+/* App-level error banner */
+.app-error-banner {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-left: 4px solid #ef4444;
+  border-radius: 8px;
+  color: #fca5a5;
+  font-size: 14px;
+  z-index: 9999;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 90%;
 }
 
-.btn-back:hover {
-  background: rgba(255, 255, 255, 0.15);
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.app-error-banner .error-icon {
+  font-size: 20px;
+}
+
+.app-error-banner .error-dismiss {
+  margin-left: auto;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: rgba(252, 165, 165, 0.6);
+  font-size: 16px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.app-error-banner .error-dismiss:hover {
+  color: #fca5a5;
+}
+
+@media (max-width: 768px) {
+  .landing-container {
+    padding: 40px 30px;
+  }
+
+  .landing-page h1 {
+    font-size: 36px;
+  }
+
+  .button-group {
+    grid-template-columns: 1fr;
+  }
+
+  .app-error-banner {
+    bottom: 10px;
+    max-width: 95%;
+  }
 }

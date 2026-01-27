@@ -87,7 +87,8 @@ def create_app(config_override=None):
     try:
         mongo_client = MongoClient(
             config.mongo.connection_string,
-            serverSelectionTimeoutMS=5000
+            serverSelectionTimeoutMS=5000,
+            uuidRepresentation='standard'
         )
         # Test connection
         mongo_client.admin.command('ping')
@@ -154,7 +155,7 @@ def create_app(config_override=None):
             card_interactor,
             marvelcdb_gateway
         )
-        game_interactor = GameInteractor(game_repo, card_repo)
+        game_interactor = GameInteractor(game_repo, deck_interactor)
         lobby_interactor = LobbyInteractor(game_repo, deck_repo, marvelcdb_gateway)
         
         logger.info("✓ Interactors initialized")

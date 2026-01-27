@@ -63,9 +63,14 @@ class LobbyInteractor:
         all_games = self.game_repo.find_all()
         return [g for g in all_games if g.phase == GamePhase.LOBBY]
     
-    def get_lobby(self, game_id: uuid.UUID) -> Optional[Game]:
+    def get_lobby(self, game_id: str) -> Optional[Game]:
         """Get a lobby by ID"""
-        game = self.game_repo.find_by_id(game_id)
+        try:
+            game_uuid = uuid.UUID(game_id)
+        except ValueError:
+            return None
+        
+        game = self.game_repo.find_by_id(game_uuid)
         
         if game and game.phase == GamePhase.LOBBY:
             return game
@@ -191,10 +196,25 @@ class LobbyInteractor:
         if not game:
             raise ValueError("Lobby not found")
         
-        # Verify deck exists
+        # Verify deck exists, fetch from MarvelCDB if not found locally
         deck = self.deck_repo.find_by_id(deck_id)
         if not deck:
-            raise ValueError("Deck not found")
+            # Try to fetch from MarvelCDB
+            try:
+                deck_list = self.marvelcdb_api.get_deck(deck_id)
+                # Convert DeckList to Deck
+                deck = Deck(
+                    id=deck_id,
+                    name=deck_list.name,
+                    cards=deck_list.cards,
+                    source_url=f"https://marvelcdb.com/decklist/view/{deck_id}",
+                    created_at=datetime.datetime.now(datetime.UTC),
+                    updated_at=datetime.datetime.now(datetime.UTC)
+                )
+                # Save to repo
+                self.deck_repo.save(deck)
+            except Exception as e:
+                raise ValueError(f"Deck not found locally or on MarvelCDB: {e}")
         
         # Find player and update with deck
         player = self._get_player_by_name(game, username)
@@ -274,17 +294,22 @@ class LobbyInteractor:
         
         return self.game_repo.save(started_game)
 
-    def delete_lobby(self, game_id: uuid.UUID, username: str) -> bool:
+    def delete_lobby(self, game_id: str, username: str) -> bool:
         """
         Delete a lobby (host only).
         
         Args:
-            game_id: Lobby ID
+            game_id: Lobby ID as string
             username: Username (must be host)
             
         Returns:
             True if deleted
         """
+        try:
+            game_uuid = uuid.UUID(game_id)
+        except ValueError:
+            return False
+        
         game = self.get_lobby(game_id)
         if not game:
             return False
@@ -293,4 +318,4 @@ class LobbyInteractor:
         if username != game.host:
             raise ValueError("Only host can delete lobby")
         
-        return self.game_repo.delete(game.id)
+        return self.game_repo.delete(game_uuid)

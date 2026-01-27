@@ -102,6 +102,18 @@ class DeckInteractor:
         saved_deck = self.deck_repo.save(deck)
         return saved_deck
     
+    def get_deck_from_marvelcdb(self, deck_id: str):
+        """
+        Fetch deck details from MarvelCDB without saving locally.
+        
+        Args:
+            deck_id: MarvelCDB deck ID
+            
+        Returns:
+            DeckList with card information
+        """
+        return self.marvelcdb.get_deck(deck_id)
+    
     def get_deck(self, deck_id: str) -> Optional[Deck]:
         """
         Retrieve a deck by its ID.

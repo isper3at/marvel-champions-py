@@ -59,14 +59,12 @@ def create_lobby():
                 'host': game.host,
                 'players': [
                     {
-                        'username': p.username,
-                        'deck_id': p.deck_id,
+                        'name': p.name,
                         'is_ready': p.is_ready,
                         'is_host': p.is_host
                     }
-                    for p in game.lobby_players
-                ],
-                'encounter_deck_id': game.encounter_deck_id
+                    for p in game.players
+                ]
             }
         }), 201
         
@@ -90,9 +88,8 @@ def list_lobbies():
                     'id': game.id,
                     'name': game.name,
                     'host': game.host,
-                    'player_count': len(game.lobby_players),
-                    'players': [p.username for p in game.lobby_players],
-                    'has_encounter': game.encounter_deck_id is not None,
+                    'player_count': len(game.players),
+                    'players': [p.name for p in game.players],
                     'all_ready': game.all_players_ready()
                 }
                 for game in lobbies
@@ -124,14 +121,14 @@ def get_lobby(lobby_id: str):
             'host': game.host,
             'players': [
                 {
-                    'username': p.username,
-                    'deck_id': p.deck_id,
+                    'username': p.name,
+                    'deck_id': p.deck.id if p.deck else None,
                     'is_ready': p.is_ready,
                     'is_host': p.is_host
                 }
-                for p in game.lobby_players
+                for p in game.players
             ],
-            'encounter_deck_id': game.encounter_deck_id,
+            'encounter_deck_id': game.encounter_deck.id if game.encounter_deck else None,
             'all_ready': game.all_players_ready(),
             'can_start': game.can_start()
         })
@@ -163,12 +160,12 @@ def join_lobby(lobby_id: str):
                 'id': game.id,
                 'players': [
                     {
-                        'username': p.username,
-                        'deck_id': p.deck_id,
+                        'username': p.name,
+                        'deck_id': p.deck.id if p.deck else None,
                         'is_ready': p.is_ready,
                         'is_host': p.is_host
                     }
-                    for p in game.lobby_players
+                    for p in game.players
                 ]
             }
         })
@@ -297,14 +294,17 @@ def toggle_ready(lobby_id: str):
         
         game = _lobby_interactor.toggle_ready(lobby_id, data['username'])
         
-        player = game.get_lobby_player(data['username'])
+        # Find the updated player
+        player = next((p for p in game.players if p.name == data['username']), None)
+        if not player:
+            return jsonify({'error': 'Player not found'}), 500
         
         logger.info(f"Player ready status: {player.is_ready}")
         
         return jsonify({
             'success': True,
             'player': {
-                'username': player.username,
+                'username': player.name,
                 'is_ready': player.is_ready
             },
             'all_ready': game.all_players_ready()
@@ -338,7 +338,7 @@ def start_game(lobby_id: str):
             'success': True,
             'game_id': game.id,
             'phase': game.phase.value,
-            'players': [p.player_name for p in game.state.players]
+            'players': [p.name for p in game.players]
         })
         
     except ValueError as e:
