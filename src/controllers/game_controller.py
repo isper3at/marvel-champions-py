@@ -3,55 +3,85 @@ Game Controller - REST API endpoints for game operations.
 
 Endpoints:
 - GET /api/games - Get all games
-- GET /api/games/recent - Get recent games
 - GET /api/games/<id> - Get game by ID
-- POST /api/games - Create new game
+- POST /api/games/<id>/draw - Draw card
+- POST /api/games/<id>/shuffle - Shuffle discard
+- POST /api/games/<id>/play - Play card
+- POST /api/games/<id>/move - Move card
+- POST /api/games/<id>/rotate - Toggle rotation
+- POST /api/games/<id>/counter - Add counter
 - DELETE /api/games/<id> - Delete game
-- POST /api/games/<id>/draw - Draw card for player
-- POST /api/games/<id>/shuffle - Shuffle discard into deck
-- POST /api/games/<id>/play - Play card to table
-- POST /api/games/<id>/move - Move card on table
-- POST /api/games/<id>/rotate - Toggle card rotation
-- POST /api/games/<id>/counter - Add counter to card
 """
 
-import uuid
 from flask import jsonify, request
 from src.controllers import game_bp
 from src.middleware import audit_endpoint
-from src.interactors import GameInteractor
 from src.entities import Position
 import logging
 
-from src.repositories.serializers import GameSerializer
-
 logger = logging.getLogger(__name__)
 
-_game_interactor: GameInteractor = None
+# Global interactors
+_list_games_interactor = None
+_get_game_interactor = None
+_draw_card_interactor = None
+_shuffle_discard_interactor = None
+_play_card_interactor = None
+_move_card_interactor = None
+_toggle_exhaustion_interactor = None
+_add_counter_interactor = None
+_delete_game_interactor = None
 
 
-def init_game_controller(game_interactor: GameInteractor):
-    """Initialize controller with interactor"""
-    global _game_interactor
-    _game_interactor = game_interactor
+def init_game_controller(
+    list_games_interactor,
+    get_game_interactor,
+    draw_card_interactor,
+    shuffle_discard_interactor,
+    play_card_interactor,
+    move_card_interactor,
+    toggle_exhaustion_interactor,
+    add_counter_interactor,
+    delete_game_interactor
+):
+    """Initialize controller with interactors."""
+    global (
+        _list_games_interactor,
+        _get_game_interactor,
+        _draw_card_interactor,
+        _shuffle_discard_interactor,
+        _play_card_interactor,
+        _move_card_interactor,
+        _toggle_exhaustion_interactor,
+        _add_counter_interactor,
+        _delete_game_interactor,
+    )
+    _list_games_interactor = list_games_interactor
+    _get_game_interactor = get_game_interactor
+    _draw_card_interactor = draw_card_interactor
+    _shuffle_discard_interactor = shuffle_discard_interactor
+    _play_card_interactor = play_card_interactor
+    _move_card_interactor = move_card_interactor
+    _toggle_exhaustion_interactor = toggle_exhaustion_interactor
+    _add_counter_interactor = add_counter_interactor
+    _delete_game_interactor = delete_game_interactor
 
 
 @game_bp.route('', methods=['GET'])
 @audit_endpoint('list_games')
 def list_games():
-    """Get all games"""
+    """Get all games."""
     try:
         logger.info("Fetching all games")
-        
-        games = _game_interactor.get_all_games()
+        games = _list_games_interactor.execute()
         
         return jsonify({
             'games': [
                 {
-                    'id': game.id,
+                    'id': str(game.id),
                     'name': game.name,
-                    'players': [p.name for p in game.players],
-                    'created_at': game.created_at.isoformat() if game.created_at else None
+                    'phase': game.phase.value,
+                    'host': game.host,
                 }
                 for game in games
             ],
@@ -63,123 +93,41 @@ def list_games():
         return jsonify({'error': str(e)}), 500
 
 
-@game_bp.route('/recent', methods=['GET'])
-@audit_endpoint('list_recent_games')
-def list_recent_games():
-    """Get recent games"""
-    limit = request.args.get('limit', 10, type=int)
-    
-    try:
-        logger.info(f"Fetching {limit} recent games")
-        
-        games = _game_interactor.get_recent_games(limit)
-        
-        return jsonify({
-            'games': [
-                {
-                    'id': game.id,
-                    'name': game.name,
-                    'players': [p.name for p in game.players],
-                    'created_at': game.created_at.isoformat() if game.created_at else None
-                }
-                for game in games
-            ],
-            'count': len(games)
-        })
-        
-    except Exception as e:
-        logger.error(f"Error fetching recent games: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
 @game_bp.route('/<game_id>', methods=['GET'])
 @audit_endpoint('get_game')
 def get_game(game_id: str):
-    """Get full game state"""
+    """Get a game by ID."""
     try:
-        uuid_id = uuid.UUID(game_id)
         logger.info(f"Fetching game: {game_id}")
-        
-        game = _game_interactor.get_game(uuid_id)
+        game = _get_game_interactor.execute(game_id)
         
         if not game:
             return jsonify({'error': 'Game not found'}), 404
         
-        return jsonify(GameSerializer.to_doc(game))
-        
-    except Exception as e:
-        logger.error(f"Error fetching game {game_id}: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-@game_bp.route('', methods=['POST'])
-@audit_endpoint('create_game')
-def create_game():
-    """Create a new game"""
-    data = request.get_json()
-    
-    if not data or 'name' not in data or 'deck_ids' not in data or 'player_names' not in data:
-        return jsonify({'error': 'name, deck_ids, and player_names are required'}), 400
-    
-    try:
-        logger.info(f"Creating game: {data['name']}")
-        
-        game = _game_interactor.create_game(
-            data['name'],
-            data['deck_ids'],
-            data['player_names']
-        )
-        
-        logger.info(f"Created game: {game.id}")
-        
         return jsonify({
-            'success': True,
-            'game': {
-                'id': game.id,
-                'name': game.name,
-                'players': [p.name for p in game.players]
-            }
-        }), 201
+            'id': str(game.id),
+            'name': game.name,
+            'phase': game.phase.value,
+            'host': game.host,
+        })
         
     except Exception as e:
-        logger.error(f"Error creating game: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-@game_bp.route('/<game_id>', methods=['DELETE'])
-@audit_endpoint('delete_game')
-def delete_game(game_id: str):
-    """Delete a game"""
-    try:
-        logger.info(f"Deleting game: {game_id}")
-        
-        success = _game_interactor.delete_game(game_id)
-        
-        if not success:
-            return jsonify({'error': 'Game not found'}), 404
-        
-        logger.info(f"Deleted game: {game_id}")
-        
-        return jsonify({'success': True})
-        
-    except Exception as e:
-        logger.error(f"Error deleting game {game_id}: {e}", exc_info=True)
+        logger.error(f"Error fetching game: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
 @game_bp.route('/<game_id>/draw', methods=['POST'])
 @audit_endpoint('draw_card')
 def draw_card(game_id: str):
-    """Draw a card for a player"""
+    """Draw a card."""
     data = request.get_json()
     
     if not data or 'player_name' not in data:
-        return jsonify({'error': 'player_name is required'}), 400
+        return jsonify({'error': 'player_name required'}), 400
     
     try:
-        logger.info(f"Drawing card for {data['player_name']} in game {game_id}")
-        
-        game = _game_interactor.draw_card(game_id, data['player_name'])
+        logger.info(f"Drawing card for {data['player_name']}")
+        game = _draw_card_interactor.execute(game_id, data['player_name'])
         
         if not game:
             return jsonify({'error': 'Game not found'}), 404
@@ -192,18 +140,17 @@ def draw_card(game_id: str):
 
 
 @game_bp.route('/<game_id>/shuffle', methods=['POST'])
-@audit_endpoint('shuffle_deck')
-def shuffle_deck(game_id: str):
-    """Shuffle discard pile into deck"""
+@audit_endpoint('shuffle_discard')
+def shuffle_discard(game_id: str):
+    """Shuffle discard into deck."""
     data = request.get_json()
     
     if not data or 'player_name' not in data:
-        return jsonify({'error': 'player_name is required'}), 400
+        return jsonify({'error': 'player_name required'}), 400
     
     try:
-        logger.info(f"Shuffling deck for {data['player_name']} in game {game_id}")
-        
-        game = _game_interactor.shuffle_discard_into_deck(game_id, data['player_name'])
+        logger.info(f"Shuffling discard for {data['player_name']}")
+        game = _shuffle_discard_interactor.execute(game_id, data['player_name'])
         
         if not game:
             return jsonify({'error': 'Game not found'}), 404
@@ -211,34 +158,29 @@ def shuffle_deck(game_id: str):
         return jsonify({'success': True})
         
     except Exception as e:
-        logger.error(f"Error shuffling deck: {e}", exc_info=True)
+        logger.error(f"Error shuffling discard: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
 @game_bp.route('/<game_id>/play', methods=['POST'])
 @audit_endpoint('play_card')
 def play_card(game_id: str):
-    """Play a card from hand to table"""
+    """Play a card to the table."""
     data = request.get_json()
     
-    required = ['player_name', 'card_code', 'x', 'y']
+    required = ['player_name', 'card_code', 'position']
     if not data or not all(k in data for k in required):
-        return jsonify({'error': f'Required fields: {", ".join(required)}'}), 400
+        return jsonify({'error': f'{", ".join(required)} required'}), 400
     
     try:
-        logger.info(f"Playing card {data['card_code']} for {data['player_name']}")
-        
-        position = Position(x=data['x'], y=data['y'])
-        
-        game = _game_interactor.play_card_to_table(
-            game_id,
-            data['player_name'],
-            data['card_code'],
-            position
+        logger.info(f"Playing card {data['card_code']}")
+        position = Position(**data['position'])
+        game = _play_card_interactor.execute(
+            game_id, data['player_name'], data['card_code'], position
         )
         
         if not game:
-            return jsonify({'error': 'Game not found or card not in hand'}), 404
+            return jsonify({'error': 'Game not found'}), 404
         
         return jsonify({'success': True})
         
@@ -250,19 +192,17 @@ def play_card(game_id: str):
 @game_bp.route('/<game_id>/move', methods=['POST'])
 @audit_endpoint('move_card')
 def move_card(game_id: str):
-    """Move a card on the table"""
+    """Move a card on the table."""
     data = request.get_json()
     
-    required = ['card_code', 'x', 'y']
+    required = ['card_code', 'position']
     if not data or not all(k in data for k in required):
-        return jsonify({'error': f'Required fields: {", ".join(required)}'}), 400
+        return jsonify({'error': f'{", ".join(required)} required'}), 400
     
     try:
-        logger.debug(f"Moving card {data['card_code']} to ({data['x']}, {data['y']})")
-        
-        position = Position(x=data['x'], y=data['y'])
-        
-        game = _game_interactor.move_card_on_table(game_id, data['card_code'], position)
+        logger.info(f"Moving card {data['card_code']}")
+        position = Position(**data['position'])
+        game = _move_card_interactor.execute(game_id, data['card_code'], position)
         
         if not game:
             return jsonify({'error': 'Game not found'}), 404
@@ -275,18 +215,17 @@ def move_card(game_id: str):
 
 
 @game_bp.route('/<game_id>/rotate', methods=['POST'])
-@audit_endpoint('rotate_card')
-def rotate_card(game_id: str):
-    """Toggle card rotation (exhaust/ready)"""
+@audit_endpoint('toggle_exhaustion')
+def toggle_exhaustion(game_id: str):
+    """Toggle card exhaustion."""
     data = request.get_json()
     
     if not data or 'card_code' not in data:
-        return jsonify({'error': 'card_code is required'}), 400
+        return jsonify({'error': 'card_code required'}), 400
     
     try:
-        logger.debug(f"Rotating card {data['card_code']}")
-        
-        game = _game_interactor.toggle_card_rotation(game_id, data['card_code'])
+        logger.info(f"Toggling exhaustion for {data['card_code']}")
+        game = _toggle_exhaustion_interactor.execute(game_id, data['card_code'])
         
         if not game:
             return jsonify({'error': 'Game not found'}), 404
@@ -294,28 +233,25 @@ def rotate_card(game_id: str):
         return jsonify({'success': True})
         
     except Exception as e:
-        logger.error(f"Error rotating card: {e}", exc_info=True)
+        logger.error(f"Error toggling exhaustion: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
 @game_bp.route('/<game_id>/counter', methods=['POST'])
 @audit_endpoint('add_counter')
 def add_counter(game_id: str):
-    """Add counters to a card"""
+    """Add a counter to a card."""
     data = request.get_json()
     
-    required = ['card_code', 'counter_type', 'amount']
+    required = ['card_code', 'counter_type']
     if not data or not all(k in data for k in required):
-        return jsonify({'error': f'Required fields: {", ".join(required)}'}), 400
+        return jsonify({'error': f'{", ".join(required)} required'}), 400
     
     try:
-        logger.debug(f"Adding {data['amount']} {data['counter_type']} to {data['card_code']}")
-        
-        game = _game_interactor.add_counter_to_card(
-            game_id,
-            data['card_code'],
-            data['counter_type'],
-            data['amount']
+        logger.info(f"Adding counter to {data['card_code']}")
+        amount = data.get('amount', 1)
+        game = _add_counter_interactor.execute(
+            game_id, data['card_code'], data['counter_type'], amount
         )
         
         if not game:
@@ -325,4 +261,22 @@ def add_counter(game_id: str):
         
     except Exception as e:
         logger.error(f"Error adding counter: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@game_bp.route('/<game_id>', methods=['DELETE'])
+@audit_endpoint('delete_game')
+def delete_game(game_id: str):
+    """Delete a game."""
+    try:
+        logger.info(f"Deleting game: {game_id}")
+        success = _delete_game_interactor.execute(game_id)
+        
+        if not success:
+            return jsonify({'error': 'Game not found'}), 404
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logger.error(f"Error deleting game: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500

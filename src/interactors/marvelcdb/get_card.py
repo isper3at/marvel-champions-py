@@ -4,7 +4,7 @@ from src.boundaries.repository import CardRepository
 from src.boundaries.marvelcdb_gateway import MarvelCDBGateway
 
 
-class GetCardInteractor():
+class GetCardInteractor:
     """
     Interactor for retrieving a Card.
     """
@@ -15,7 +15,7 @@ class GetCardInteractor():
         self.card_repo = card_repo
         self.marvelcdb_client = marvelcdb_client
 
-    def get(self, card_id: str, update: bool) -> Optional[Card]:
+    def get(self, card_id: str, update: bool=False) -> Optional[Card]:
         """
         Retrieve a card by its ID.
         

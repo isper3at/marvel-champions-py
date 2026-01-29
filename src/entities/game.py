@@ -35,7 +35,7 @@ class Game:
     host: str
     id: uuid.UUID = field(default_factory=uuid.uuid4)
     phase: GamePhase = GamePhase.LOBBY
-    players: List[Player] = ()
+    players: tuple = (Player, )
     encounter_deck: Optional[EncounterDeck] = None
     play_zone: Optional[PlayZone] = None
     created_at: Optional[datetime.datetime] = field(default_factory=datetime.datetime.now)
@@ -155,4 +155,18 @@ class Game:
             len(self.players) > 0 and
             self.all_players_ready() and
             self.encounter_deck is not None
+        )
+    
+    def update_play_zone(self, new_play_zone: PlayZone) -> 'Game':
+        """Update the play zone of the game"""
+        return Game(
+            name=self.name,
+            host=self.host,
+            id=self.id,
+            phase=self.phase,
+            players=self.players,
+            encounter_deck=self.encounter_deck,
+            play_zone=new_play_zone,
+            created_at=self.created_at,
+            updated_at=datetime.datetime.now(datetime.UTC)
         )

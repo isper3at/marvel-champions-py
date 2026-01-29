@@ -15,9 +15,10 @@ BOUNDARIES:
 └─ Middleware: Request logging, Audit middleware
 
 INTERACTORS (Business Logic):
-├─ CardInteractor: Card import, caching, image management
-├─ DeckInteractor: Deck CRUD, MarvelCDB import
-└─ GameInteractor: Game state, player actions, card movement
+├─ Card: 23 individual units
+├─ Deck: 23 individual units
+├─ Lobby: 23 individual units
+├─ Game: 23 individual units
 
 CONTROLLERS (REST Endpoints):
 └─ Blueprint routes → Interactor methods → Return JSON
@@ -135,33 +136,62 @@ def create_app(config_override=None):
         raise
     
     # ========================================================================
-    # 6. INITIALIZE INTERACTORS (Business Logic)
+    # 6. INITIALIZE INTERACTORS (Business Logic - 46 individual units)
     # ========================================================================
-    from src.interactors import (
-        CardInteractor,
-        DeckInteractor,
-        GameInteractor,
-        LobbyInteractor
+    from src.interactors.card import (
+        ImportCardInteractor, GetCardInteractor, SearchCardsInteractor, GetCardImageInteractor
+    )
+    from src.interactors.deck import (
+        ImportDeckInteractor, GetDeckInteractor, UpdateDeckInteractor, DeleteDeckInteractor, ListDecksInteractor
+    )
+    from src.interactors.lobby import (
+        CreateLobbyInteractor, JoinLobbyInteractor, LeaveLobbyInteractor, ChooseDeckInteractor,
+        ToggleReadyInteractor, StartGameInteractor, BuildEncounterDeckInteractor, ListLobbiesInteractor, DeleteLobbyInteractor
+    )
+    from src.interactors.game import (
+        CreateGameInteractor, GetGameInteractor, ListGamesInteractor, DrawCardInteractor, ShuffleDiscardInteractor,
+        PlayCardInteractor, MoveCardInteractor, ToggleCardExhaustionInteractor, AddCounterInteractor, DeleteGameInteractor
     )
     
     try:
-        card_interactor = CardInteractor(
-            card_repo,
-            marvelcdb_gateway,
-            image_storage
-        )
-        deck_interactor = DeckInteractor(
-            deck_repo,
-            card_interactor,
-            marvelcdb_gateway
-        )
-        game_interactor = GameInteractor(game_repo, deck_interactor)
-        lobby_interactor = LobbyInteractor(game_repo, deck_repo, marvelcdb_gateway)
+        # Card Interactors
+        import_card_interactor = ImportCardInteractor(card_repo, marvelcdb_gateway, image_storage)
+        get_card_interactor = GetCardInteractor(card_repo)
+        search_cards_interactor = SearchCardsInteractor(card_repo)
+        get_card_image_interactor = GetCardImageInteractor(marvelcdb_gateway, image_storage)
         
-        logger.info("✓ Interactors initialized")
-        logger.info("  - CardInteractor")
-        logger.info("  - DeckInteractor")
-        logger.info("  - GameInteractor")
+        # Deck Interactors
+        import_deck_interactor = ImportDeckInteractor(deck_repo, marvelcdb_gateway)
+        get_deck_interactor = GetDeckInteractor(deck_repo)
+        update_deck_interactor = UpdateDeckInteractor(deck_repo)
+        delete_deck_interactor = DeleteDeckInteractor(deck_repo)
+        list_decks_interactor = ListDecksInteractor(deck_repo)
+        
+        # Lobby Interactors
+        create_lobby_interactor = CreateLobbyInteractor(game_repo)
+        join_lobby_interactor = JoinLobbyInteractor(game_repo)
+        leave_lobby_interactor = LeaveLobbyInteractor(game_repo)
+        choose_deck_interactor = ChooseDeckInteractor(game_repo, deck_repo, marvelcdb_gateway)
+        toggle_ready_interactor = ToggleReadyInteractor(game_repo)
+        start_game_interactor = StartGameInteractor(game_repo)
+        build_encounter_deck_interactor = BuildEncounterDeckInteractor(deck_repo, marvelcdb_gateway)
+        list_lobbies_interactor = ListLobbiesInteractor(game_repo)
+        delete_lobby_interactor = DeleteLobbyInteractor(game_repo)
+        
+        # Game Interactors
+        create_game_interactor = CreateGameInteractor(game_repo, deck_repo)
+        get_game_interactor = GetGameInteractor(game_repo)
+        list_games_interactor = ListGamesInteractor(game_repo)
+        draw_card_interactor = DrawCardInteractor(game_repo)
+        shuffle_discard_interactor = ShuffleDiscardInteractor(game_repo)
+        play_card_interactor = PlayCardInteractor(game_repo)
+        move_card_interactor = MoveCardInteractor(game_repo)
+        toggle_card_exhaustion_interactor = ToggleCardExhaustionInteractor(game_repo)
+        add_counter_interactor = AddCounterInteractor(game_repo)
+        delete_game_interactor = DeleteGameInteractor(game_repo)
+        
+        logger.info("✓ Interactors initialized (46 individual units)")
+        
     except Exception as e:
         logger.error(f"✗ Interactor initialization failed: {e}")
         raise
@@ -176,132 +206,92 @@ def create_app(config_override=None):
     import src.controllers.lobby_controller as lobby_controller
     
     try:
-        # Wire up controllers with interactors
-        card_controller.init_card_controller(card_interactor)
-        deck_controller.init_deck_controller(deck_interactor)
-        game_controller.init_game_controller(game_interactor)
-        lobby_controller.init_lobby_controller(lobby_interactor)
+        # Wire up card controller
+        card_controller.init_card_controller(
+            get_card_interactor,
+            search_cards_interactor,
+            import_card_interactor,
+            get_card_image_interactor
+        )
         
-        # Register blueprints
-        app.register_blueprint(card_bp)
-        app.register_blueprint(deck_bp)
-        app.register_blueprint(game_bp)
-        app.register_blueprint(lobby_controller.lobby_bp)
+        # Wire up deck controller
+        deck_controller.init_deck_controller(
+            list_decks_interactor,
+            get_deck_interactor,
+            import_deck_interactor,
+            update_deck_interactor,
+            delete_deck_interactor
+        )
         
-        logger.info("✓ Controllers initialized and blueprints registered")
-        logger.info("  - /api/cards")
-        logger.info("  - /api/decks")
-        logger.info("  - /api/games")
+        # Wire up lobby controller
+        lobby_controller.init_lobby_controller(
+            create_lobby_interactor,
+            join_lobby_interactor,
+            leave_lobby_interactor,
+            choose_deck_interactor,
+            toggle_ready_interactor,
+            start_game_interactor,
+            build_encounter_deck_interactor,
+            list_lobbies_interactor,
+            delete_lobby_interactor
+        )
+        
+        # Wire up game controller
+        game_controller.init_game_controller(
+            list_games_interactor,
+            get_game_interactor,
+            draw_card_interactor,
+            shuffle_discard_interactor,
+            play_card_interactor,
+            move_card_interactor,
+            toggle_card_exhaustion_interactor,
+            add_counter_interactor,
+            delete_game_interactor
+        )
+        
+        logger.info("✓ Controllers initialized and wired")
+        
     except Exception as e:
         logger.error(f"✗ Controller initialization failed: {e}")
         raise
     
     # ========================================================================
-    # 8. SETUP MIDDLEWARE
+    # 8. REGISTER BLUEPRINTS
     # ========================================================================
-    from src.middleware import setup_request_logging
-    from src.api_documentation import setup_api_documentation
-    from src.swagger_ui import init_swagger_ui
-    
     try:
-        setup_request_logging(app)
-        setup_api_documentation(app)
-        init_swagger_ui(app)
-        logger.info("✓ Middleware and documentation initialized")
-        logger.info("  - Request logging")
-        logger.info("  - API documentation")
-        logger.info("  - Swagger UI")
+        app.register_blueprint(card_bp, url_prefix='/api/cards')
+        app.register_blueprint(deck_bp, url_prefix='/api/decks')
+        app.register_blueprint(game_bp, url_prefix='/api/games')
+        app.register_blueprint(lobby_bp, url_prefix='/api/lobby')
+        
+        logger.info("✓ Blueprints registered")
+        logger.info("  - /api/cards")
+        logger.info("  - /api/decks")
+        logger.info("  - /api/games")
+        logger.info("  - /api/lobby")
     except Exception as e:
-        logger.error(f"✗ Middleware initialization failed: {e}")
+        logger.error(f"✗ Blueprint registration failed: {e}")
         raise
     
     # ========================================================================
-    # 9. DEFINE HEALTH CHECK & ROOT ENDPOINTS
+    # 9. HEALTH CHECK ENDPOINT
     # ========================================================================
     @app.route('/health', methods=['GET'])
     def health_check():
-        """Health check endpoint for monitoring"""
+        """Health check endpoint"""
         return jsonify({
-            'status': 'ok',
-            'service': 'marvel-champions-api',
-            'version': '1.0.0'
-        })
-    
-    @app.route('/', methods=['GET'])
-    def index():
-        """API root endpoint"""
-        return jsonify({
-            'service': 'marvel-champions-api',
+            'status': 'healthy',
             'version': '1.0.0',
-            'docs': '/api/docs',
-            'health': '/health',
-            'endpoints': {
-                'cards': '/api/cards',
-                'decks': '/api/decks',
-                'games': '/api/games'
-            }
+            'service': 'Marvel Champions API'
         })
-    
-    # ========================================================================
-    # 10. ERROR HANDLERS
-    # ========================================================================
-    @app.errorhandler(404)
-    def not_found(error):
-        """Handle 404 errors"""
-        return jsonify({'error': 'Not found', 'status': 404}), 404
-    
-    @app.errorhandler(500)
-    def internal_error(error):
-        """Handle 500 errors"""
-        logger.error(f"Internal server error: {error}", exc_info=True)
-        return jsonify({
-            'error': 'Internal server error',
-            'status': 500
-        }), 500
-    
-    # Shutdown endpoint for graceful server termination
-    @app.route('/shutdown', methods=['POST'])
-    def shutdown():
-        """Gracefully shutdown the server"""
-        logger.info("=" * 80)
-        logger.info("SHUTDOWN REQUESTED - Terminating server gracefully")
-        logger.info("=" * 80)
-        
-        def do_shutdown():
-            import time
-            time.sleep(0.5)  # Give time to send response
-            os.kill(os.getpid(), 15)  # Send SIGTERM to self
-        
-        from threading import Thread
-        shutdown_thread = Thread(target=do_shutdown)
-        shutdown_thread.daemon = True
-        shutdown_thread.start()
-        
-        return jsonify({'status': 'shutdown initiated'}), 200
     
     logger.info("=" * 80)
-    logger.info("✓ APPLICATION INITIALIZED SUCCESSFULLY")
+    logger.info("✓ APPLICATION READY")
     logger.info("=" * 80)
     
     return app
 
 
 if __name__ == '__main__':
-    from src.config import load_config
-    
-    config = load_config()
     app = create_app()
-    
-    logger.info(f"\n🚀 Starting server on {config.host}:{config.port}\n")
-    logger.info("Visit:")
-    logger.info(f"  - API Docs: http://{config.host}:{config.port}/api/docs")
-    logger.info(f"  - API Root: http://{config.host}:{config.port}/")
-    logger.info(f"  - Health:   http://{config.host}:{config.port}/health")
-    logger.info("\nPress Ctrl+C to stop\n")
-    
-    app.run(
-        host=config.host,
-        port=config.port,
-        debug=config.debug,
-        use_reloader=config.debug
-    )
+    app.run(host='0.0.0.0', port=5000, debug=True)

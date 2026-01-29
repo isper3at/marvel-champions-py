@@ -31,7 +31,7 @@ class MongoDeckRepository(DeckRepository):
         doc = self.collection.find_one({'source_url': {'$regex': f'/decklist/{marvelcdb_id}$'}})
         return DeckSerializer.to_entity(doc) if doc else None
     
-    def save(self, deck: Deck) -> Deck:
+    def save(self, deck: Deck) -> Optional[Deck]:
         """Save a deck and return the saved entity"""
         doc = DeckSerializer.to_doc(deck)
         doc['updated_at'] = datetime.datetime.now(datetime.UTC)
