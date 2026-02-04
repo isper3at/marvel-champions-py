@@ -1,7 +1,7 @@
 """Interactor to search cards by name."""
 from typing import List
 from src.entities import Card
-from src.boundaries.repository import CardRepository
+from src.boundaries.card_repository import CardRepository
 
 
 class SearchCardsInteractor:

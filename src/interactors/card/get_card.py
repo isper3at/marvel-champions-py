@@ -1,7 +1,7 @@
 """Interactor to get a card by code."""
 from typing import Optional
 from src.entities import Card
-from src.boundaries.repository import CardRepository
+from src.boundaries.card_repository import CardRepository
 
 
 class GetCardInteractor:

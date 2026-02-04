@@ -1,8 +1,8 @@
 """Interactor to add a counter to a card."""
 from typing import Optional
 import uuid
-from src.entities import Game, GameState
-from src.boundaries.repository import GameRepository
+from src.entities import Game
+from src.boundaries.game_repository import GameRepository
 
 
 class AddCounterInteractor:

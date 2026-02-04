@@ -4,7 +4,7 @@ Game Interactor - Business logic for game operations.
 
 from typing import Optional, List
 import random
-from src.boundaries.repository import GameRepository
+from src.boundaries.game_repository import GameRepository
 from src.entities import Game, GamePhase, PlayZone, CardInPlay, Position
 from .deck_interactor import DeckInteractor
 

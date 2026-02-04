@@ -1,7 +1,7 @@
 """Interactor to list all games."""
 from typing import List
 from src.entities import Game
-from src.boundaries.repository import GameRepository
+from src.boundaries.game_repository import GameRepository
 
 
 class ListGamesInteractor:

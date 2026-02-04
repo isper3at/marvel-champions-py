@@ -1,7 +1,7 @@
 """Interactor to toggle player ready status."""
 import uuid
 from src.entities import Game
-from src.boundaries.repository import GameRepository
+from src.boundaries.game_repository import GameRepository
 
 
 class ToggleReadyInteractor:

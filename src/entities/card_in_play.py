@@ -7,6 +7,7 @@ from typing import List
 from .card import Card
 from .position import Position
 from .token import Token
+from uuid import uuid4
 
 
 @dataclass(frozen=True)
@@ -34,13 +35,26 @@ class CardInPlay:
         >>> assert updated.counters['damage'] == 5
     """
     card: Card
+    card_id: str
     position: Position
-    counters: List[Token] = ()
     
     def __post_init__(self):
-        if self.counters is None:
-            object.__setattr__(self, 'counters', {})
-    
+        object.__setattr__(self, 'card_id', uuid4().hex)
+
+    @staticmethod
+    def from_card(card: Card, position: Position) -> 'CardInPlay':
+        """Create a CardInPlay instance from a Card and Position."""
+        return CardInPlay(
+            card_id=uuid4().hex,
+            card=card,
+            position=position
+        )
+
+    @property
+    def id(self) -> str:
+        """Return the unique ID of this CardInPlay instance"""
+        return self.card_id    
+
     @property
     def code(self) -> str:
         """Return the card code"""
@@ -54,9 +68,9 @@ class CardInPlay:
     def move_to(self, new_position: Position) -> 'CardInPlay':
         """Return new instance with updated position"""
         return CardInPlay(
+            card_id=self.card_id,
             card=self.card,
-            position=new_position,
-            counters=self.counters
+            position=new_position
         )
         
     def rotate(self, new_rotation: int) -> 'CardInPlay':
@@ -68,27 +82,16 @@ class CardInPlay:
             flip_state=self.position.flip_state
         )
         return CardInPlay(
+            card_id=self.card_id,
             card=self.card,
             position=new_position,
-            counters=self.counters
         )
         
     def flip(self) -> 'CardInPlay':
         """Return new instance with updated flip state"""
         new_position = self.position.flip()
         return CardInPlay(
+            card_id=self.card_id,
             card=self.card,
-            position=new_position,
-            counters=self.counters
+            position=new_position
             )
-        
-    def add_counter(self, counter_type: str, amount: int = 1) -> 'CardInPlay':
-        """Add counters to a card"""
-        new_counters = dict(self.counters)
-        new_counters[counter_type] = new_counters.get(counter_type, 0) + amount
-        
-        return CardInPlay(
-            card=self.card,
-            position=self.position,
-            counters=new_counters
-        )

@@ -1,5 +1,5 @@
 """Interactor to delete a deck."""
-from src.boundaries.repository import DeckRepository
+from src.boundaries.deck_repository import DeckRepository
 
 
 class DeleteDeckInteractor:

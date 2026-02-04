@@ -2,7 +2,7 @@
 from typing import Optional
 import uuid
 from src.entities import Game, GamePhase, Player
-from src.boundaries.repository import GameRepository
+from src.boundaries.game_repository import GameRepository
 
 
 class JoinLobbyInteractor:

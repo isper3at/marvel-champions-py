@@ -135,3 +135,43 @@ class Deck:
         for deck_card in self.cards:
             codes.extend([deck_card.code] * deck_card.quantity)
         return codes
+    
+    def get_deck_list(self) -> DeckList:
+        """
+        Convert this Deck into a DeckList representation.
+        
+        Returns a DeckList containing the same cards as this Deck.
+        """
+        deck_list_cards = [
+            DeckCard(code=card.code, name=card.name, quantity=card.quantity)
+            for card in self.cards
+        ]
+        return DeckList(
+            id=self.id,
+            name=self.name,
+            cards=self.cards
+        )
+    
+    @staticmethod
+    def from_deck_list(deck_list: DeckList) -> 'Deck':
+        """
+        Create a Deck entity from a DeckList.
+        
+        Args:
+            deck_list: DeckList to convert
+        Returns:
+            Deck entity with same cards as the DeckList
+        """
+
+
+
+        cards = []
+
+        for c in deck_list.cards:
+            cards += [Card(code=c.code,name=c.name)] * c.quantity
+
+        return Deck(
+            id=deck_list.id,
+            name=deck_list.name,
+            cards=cards
+        )   

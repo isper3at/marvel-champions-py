@@ -1,6 +1,6 @@
 """Interactor to delete a game."""
 import uuid
-from src.boundaries.repository import GameRepository
+from src.boundaries.game_repository import GameRepository
 
 
 class DeleteGameInteractor:

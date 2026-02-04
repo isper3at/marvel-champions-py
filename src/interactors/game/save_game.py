@@ -1,6 +1,6 @@
 """Interactor to save a game."""
 from src.entities import Game
-from src.boundaries.repository import GameRepository
+from src.boundaries.game_repository import GameRepository
 
 
 class SaveGameInteractor:

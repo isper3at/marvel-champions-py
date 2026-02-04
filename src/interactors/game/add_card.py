@@ -1,5 +1,6 @@
 from src.gateways.marvelcdb_client import MarvelCDBClient
-from src.boundaries.repository import CardRepository, GameRepository
+from src.boundaries.game_repository import GameRepository
+from src.boundaries.card_repository import CardRepository
 from src.interactors.marvelcdb.get_card import GetCardInteractor
 from src.entities import Card, Game
 from typing import Optional
@@ -43,7 +44,7 @@ class AddCard:
             return False
         
         if game.encounter_deck is not None and deck_id == game.encounter_deck.id:
-            new_encounter_deck = game.encounter_deck.add_card(card)
+            new_encounter_deck = game.encounter_deck.cardsadd
             new_game = game.update_encounter_deck(new_encounter_deck)
             saved_game = self.game_repository.save(new_game)
             return saved_game is not None

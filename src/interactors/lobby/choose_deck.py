@@ -2,7 +2,7 @@
 from typing import Optional
 import uuid
 from src.entities import Game, Deck
-from src.boundaries.repository import GameRepository, DeckRepository
+from src.boundaries.game_repository import GameRepository, DeckRepository
 from src.boundaries.marvelcdb_gateway import MarvelCDBGateway
 
 

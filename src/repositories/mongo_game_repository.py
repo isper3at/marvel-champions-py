@@ -4,7 +4,7 @@ MongoDB implementation of GameRepository
 from typing import Optional, List
 import uuid
 from pymongo.database import Database
-from src.boundaries.repository import GameRepository
+from src.boundaries.game_repository import GameRepository
 from src.entities import Game
 import datetime
 

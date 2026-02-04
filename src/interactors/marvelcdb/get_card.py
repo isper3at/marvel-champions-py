@@ -1,6 +1,6 @@
 from typing import Optional
 from src.entities import Card
-from src.boundaries.repository import CardRepository
+from src.boundaries.game_repository import CardRepository
 from src.boundaries.marvelcdb_gateway import MarvelCDBGateway
 
 

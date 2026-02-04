@@ -1,6 +1,6 @@
 from typing import Optional
 from src.entities import Deck
-from src.boundaries.repository import DeckRepository
+from src.boundaries.game_repository import DeckRepository
 from src.boundaries.marvelcdb_gateway import MarvelCDBGateway
 
 

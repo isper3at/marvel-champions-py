@@ -1,7 +1,7 @@
 from typing import Optional, List
 from pymongo.database import Database
 from pymongo import UpdateOne
-from src.boundaries.repository import CardRepository
+from src.boundaries.game_repository import CardRepository
 from src.entities import Card
 import datetime
 

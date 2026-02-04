@@ -1,6 +1,6 @@
 """Interactor to import a card from MarvelCDB."""
 from src.entities import Card
-from src.boundaries.repository import CardRepository
+from src.boundaries.card_repository import CardRepository
 from src.boundaries.marvelcdb_gateway import MarvelCDBGateway
 from src.boundaries.image_storage import ImageStorage
 

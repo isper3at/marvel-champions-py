@@ -1,8 +1,8 @@
 """Interactor to move a card on the table."""
 from typing import Optional
-import uuid
-from src.entities import Game, Position, GameState
-from src.boundaries.repository import GameRepository
+from uuid import UUID
+from src.entities import Game, Position
+from src.boundaries.game_repository import GameRepository
 
 
 class MoveCardInteractor:
@@ -13,7 +13,7 @@ class MoveCardInteractor:
     
     def execute(
         self,
-        game_id: str,
+        game_id: UUID,
         card_code: str,
         new_position: Position
     ) -> Optional[Game]:
@@ -28,12 +28,7 @@ class MoveCardInteractor:
         Returns:
             Updated Game or None if game not found
         """
-        try:
-            game_uuid = uuid.UUID(game_id)
-        except ValueError:
-            return None
-        
-        game = self.game_repo.find_by_id(game_uuid)
+        game = self.game_repo.find_by_id(game_id)
         if not game:
             return None
         

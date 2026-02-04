@@ -1,7 +1,7 @@
 """Interactor to list all decks."""
 from typing import List
 from src.entities import Deck
-from src.boundaries.repository import DeckRepository
+from src.boundaries.deck_repository import DeckRepository
 
 
 class ListDecksInteractor:

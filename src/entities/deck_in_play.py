@@ -3,31 +3,29 @@ from typing import Tuple, Optional
 import random
 from .deck import Deck
 from .position import Position
-
+from .card_in_play import CardInPlay
 
 @dataclass(frozen=True)
 class DeckInPlay:
     deck: Deck  # The deck being played
-    draw_position: Position  # Position of the draw pile on the play field
-    discard_position: Position  # Position of the discard pile on the play field
-    draw_pile: Tuple[str, ...]  # Tuple of card codes in draw pile
-    discard_pile: Tuple[str, ...]  # Tuple of card codes in discard pile
-    hand: Tuple[str, ...]  # Tuple of card codes in hand
+    deck_position: Position  # Position of the draw pile on the play field
+    draw_pile: list[CardInPlay]  # Cards currently in play from this deck
     
-    @classmethod
-    def from_deck(cls, deck: Deck, shuffle: bool = True) -> 'DeckInPlay':
-        draw_pile = tuple(deck.get_card_codes())
-        if shuffle:
-            draw_pile = random.shuffle(list(draw_pile))
-            
-        return cls(
-            deck=deck,
-            draw_pile=draw_pile,
-            discard_pile=(),
-            hand=()
-        )
+    @staticmethod
+    def from_deck(deck: Deck, pos: Position, shuffle: bool = True) -> 'DeckInPlay':
+        play_cards = list[CardInPlay]()
+        for c in deck.cards:
+            play_cards.append(CardInPlay.from_card(card=c, position=pos.flip()))
 
-    def draw_card(self, count: int = 1) -> tuple['DeckInPlay', Optional[str]]:
+        if shuffle:
+            random.shuffle(play_cards)
+            
+        return DeckInPlay(
+            deck=deck,
+            draw_pile=play_cards,
+            deck_position=pos)
+
+    def draw_card(self, count: int = 1) -> tuple['DeckInPlay', Optional[CardInPlay]]:
         """
         Draw a card from the draw pile into hand
         
@@ -44,74 +42,12 @@ class DeckInPlay:
         
         drawn = self.draw_pile[:count]
         new_draw_pile = self.draw_pile[count:]
-        new_hand = self.hand + drawn
         
         return DeckInPlay(
             deck=self.deck,
             draw_pile=new_draw_pile,
-            discard_pile=self.discard_pile,
-            hand=new_hand
+            deck_position=self.deck_position
         ), drawn[0] if drawn else None
-        
-    def discard_from_hand(self, card_code: str) -> 'DeckInPlay':
-        """
-        Discard a card from hand to discard pile
-        
-        Args:
-            card_code: Card code to discard
-        Returns:
-            New DeckInPlay state with card discarded
-        """
-        if card_code not in self.hand:
-            return self  # No change if card not in hand
-        
-        hand_list = list(self.hand)
-        hand_list.remove(card_code)
-        
-        return DeckInPlay(
-            deck=self.deck,
-            draw_pile=self.draw_pile,
-            discard_pile=self.discard_pile + (card_code,),
-            hand=tuple(hand_list)
-        )
-        
-    def discard_from_play(self, card_code: str) -> 'DeckInPlay':
-        """
-        Discard a card from play area to discard pile
-        
-        Args:
-            card_code: Card code to discard
-        Returns:
-            New DeckInPlay state with card discarded
-        """       
-        return DeckInPlay(
-            deck=self.deck,
-            draw_pile=self.draw_pile,
-            discard_pile=self.discard_pile + (card_code,),
-            hand=self.hand
-        )
-        
-    def play_from_hand(self, card_code: str) -> 'DeckInPlay':
-        """
-        Play a card from hand (removing it from hand)
-        
-        Args:
-            card_code: Card code to play
-        Returns:
-            New DeckInPlay state with card removed from hand
-        """
-        if card_code not in self.hand:
-            return self  # No change if card not in hand
-        
-        hand_list = list(self.hand)
-        hand_list.remove(card_code)
-        
-        return DeckInPlay(
-            deck=self.deck,
-            draw_pile=self.draw_pile,
-            discard_pile=self.discard_pile,
-            hand=tuple(hand_list)
-        )
         
     def shuffle(self) -> 'DeckInPlay':
         """
@@ -120,34 +56,31 @@ class DeckInPlay:
         Returns:
             New DeckInPlay state with shuffled draw pile
         """
-        shuffled_draw = list(self.draw_pile)
-        random.shuffle(shuffled_draw)
+        random.shuffle(self.draw_pile)
         
         return DeckInPlay(
             deck=self.deck,
-            draw_pile=tuple(shuffled_draw),
-            discard_pile=self.discard_pile,
-            hand=self.hand
+            draw_pile=self.draw_pile,
+            deck_position=self.deck_position
         )
         
-    def shuffle_discard_into_draw(self) -> 'DeckInPlay':
+    def shuffle_cards_into_draw(self, cards:list[CardInPlay]) -> 'DeckInPlay':
         """
         Shuffle discard pile back into draw pile
         
         Returns:
             New DeckInPlay state with discard shuffled into draw pile
         """
-        combined = list(self.draw_pile) + list(self.discard_pile)
+        combined = self.draw_pile + cards
         random.shuffle(combined)
         
         return DeckInPlay(
             deck=self.deck,
-            draw_pile=tuple(combined),
-            discard_pile=(),
-            hand=self.hand
+            draw_pile=combined,
+            deck_position=self.deck_position
         )
         
-    def add_card_to_hand(self, card_code: str) -> 'DeckInPlay':
+    def get_and_remove_card(self, card_id: str, shuffle: bool = False) -> tuple['DeckInPlay', Optional[CardInPlay]]:
         """
         Add a specific card code to hand (e.g., for effects that add cards)
         
@@ -157,46 +90,47 @@ class DeckInPlay:
         Returns:
             New DeckInPlay state with card added to hand
         """
-        return DeckInPlay(
+
+        card_to_remove = None
+        new_draw_pile = []
+        for card in self.draw_pile:
+            if card.card_id == card_id and card_to_remove is None:
+                card_to_remove = card
+            else:
+                new_draw_pile.append(card)
+
+
+        new_deck_in_play = DeckInPlay(
             deck=self.deck,
-            draw_pile=self.draw_pile,
-            discard_pile=self.discard_pile,
-            hand=self.hand + (card_code,)
+            draw_pile=new_draw_pile,
+            deck_position=self.deck_position
         )
+        if shuffle:
+            new_deck_in_play = new_deck_in_play.shuffle()
+
+        return new_deck_in_play, card_to_remove
         
-    def add_card_to_discard(self, card_code: str) -> 'DeckInPlay':
-        """
-        Add a specific card code to discard pile (e.g., for effects that add cards)
-        
-        Args:
-            card_code: Card code to add to discard pile
-            
-        Returns:
-            New DeckInPlay state with card added to discard pile
-        """
-        return DeckInPlay(
-            deck=self.deck,
-            draw_pile=self.draw_pile,
-            discard_pile=self.discard_pile + (card_code,),
-            hand=self.hand
-        )
-        
-    def add_card_to_deck(self, card_code: str) -> 'DeckInPlay':
+    def add_card_to_deck(self, card_to_add: CardInPlay, shuffle:bool = False) -> 'DeckInPlay':
         """
         Add a specific card code to the deck (e.g., for effects that add cards)
         
         Args:
-            card_code: Card code to add to deck
+            card_to_add: The CardInPlay to add to the deck.
+            shuffle: whether or not to shuffle the deck after adding. (default = False)
             
         Returns:
             New DeckInPlay state with card added to deck's card list
         """
         
+        new_draw_pile = self.draw_pile + [card_to_add]
+
+        if shuffle:
+            random.shuffle(new_draw_pile)
+
         return DeckInPlay(
             deck=self.deck,
-            draw_pile=self.draw_pile + (card_code,),
-            discard_pile=self.discard_pile,
-            hand=self.hand
+            draw_pile=new_draw_pile,
+            deck_position=self.deck_position
         )
         
     def move_draw_pile(self, new_position: Position) -> 'DeckInPlay':
@@ -211,28 +145,6 @@ class DeckInPlay:
         """
         return DeckInPlay(
             deck=self.deck,
-            draw_position=new_position,
-            discard_position=self.discard_position,
             draw_pile=self.draw_pile,
-            discard_pile=self.discard_pile,
-            hand=self.hand
+            deck_position=new_position,
         )
-        
-    def move_discard_pile(self, new_position: Position) -> 'DeckInPlay':
-        """
-        Move the discard pile to a new position on the play field
-
-        Args:
-            new_position: New Position for the discard pile
-
-        Returns:
-            New DeckInPlay state with updated discard pile position
-        """
-        return DeckInPlay(
-            deck=self.deck,
-            draw_position=self.draw_position,
-            discard_position=new_position,
-            draw_pile=self.draw_pile,
-            discard_pile=self.discard_pile,
-            hand=self.hand
-        )   

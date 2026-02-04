@@ -14,7 +14,7 @@ import uuid
 import random
 from datetime import datetime
 
-from src.boundaries.repository import GameRepository, DeckRepository
+from src.boundaries.game_repository import GameRepository, DeckRepository
 from src.gateways.marvelcdb_client import MarvelCDBClient
 from src.entities import Game, GamePhase, Player, PlayZone, EncounterDeck
 

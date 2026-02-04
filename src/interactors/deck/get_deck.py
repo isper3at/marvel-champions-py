@@ -1,7 +1,7 @@
 """Interactor to get a deck by ID."""
 from typing import Optional
 from src.entities import Deck
-from src.boundaries.repository import DeckRepository
+from src.boundaries.deck_repository import DeckRepository
 
 
 class GetDeckInteractor:

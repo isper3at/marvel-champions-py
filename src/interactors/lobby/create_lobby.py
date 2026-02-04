@@ -1,6 +1,6 @@
 """Interactor to create a lobby."""
 from src.entities import Game, GamePhase, Player
-from src.boundaries.repository import GameRepository
+from src.boundaries.game_repository import GameRepository
 
 
 class CreateLobbyInteractor:

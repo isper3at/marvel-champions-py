@@ -1,7 +1,7 @@
 """Interactor to build an encounter deck."""
 from typing import List
 from src.entities import EncounterDeck
-from src.boundaries.repository import DeckRepository
+from src.boundaries.game_repository import DeckRepository
 from src.boundaries.marvelcdb_gateway import MarvelCDBGateway
 from src.interactors.marvelcdb.get_encounter_module import GetEncounterModule
 

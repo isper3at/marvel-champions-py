@@ -1,7 +1,7 @@
 """StartGameInteractor - transitions lobby to active game"""
 
 from typing import Optional
-from src.boundaries.repository import GameRepository, DeckRepository
+from src.boundaries.game_repository import GameRepository, DeckRepository
 from src.entities import Game, GamePhase, Player, ActiveGame, DeckInPlay
 
 

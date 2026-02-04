@@ -2,7 +2,7 @@
 from typing import List
 import random
 from src.entities import Game, GamePhase, PlayZone
-from src.boundaries.repository import GameRepository, DeckRepository
+from src.boundaries.game_repository import GameRepository, DeckRepository
 
 
 class CreateGameInteractor:
