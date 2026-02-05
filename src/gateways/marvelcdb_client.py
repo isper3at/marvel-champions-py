@@ -55,7 +55,7 @@ class MarvelCDBClient(MarvelCDBGateway):
             cards=[],
             villian_cards=[],
             main_scheme_cards=[],
-            other_scheme_cards=[],
+            scenario_cards=[],
             source_url=url
         )
         
@@ -274,3 +274,6 @@ class MarvelCDBClient(MarvelCDBGateway):
             if part and part.isdigit():
                 return part
         return parts[-1] if parts else None
+    
+    def get_deck_list(self, deck_list_id: str) -> DeckList:
+        return super().get_deck_list(deck_list_id)

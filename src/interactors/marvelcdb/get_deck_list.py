@@ -1,7 +1,7 @@
 from typing import Optional
 from src.entities import DeckList
 from src.entities import DeckCard
-from src.boundaries.game_repository import DeckRepository
+from src.boundaries.deck_repository import DeckRepository
 from src.boundaries.marvelcdb_gateway import MarvelCDBGateway
 
 

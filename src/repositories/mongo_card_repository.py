@@ -1,7 +1,7 @@
 from typing import Optional, List
 from pymongo.database import Database
 from pymongo import UpdateOne
-from src.boundaries.game_repository import CardRepository
+from src.boundaries import CardRepository
 from src.entities import Card
 import datetime
 
@@ -30,7 +30,7 @@ class MongoCardRepository(CardRepository):
         docs = self.collection.find({'code': {'$in': codes}})
         return [CardSerializer.to_entity(doc) for doc in docs]
     
-    def save(self, card: Card) -> Card:
+    def save(self, card: Card) -> Optional[Card]:
         """Save a card and return the saved entity"""
         doc = CardSerializer.to_doc(card)
         doc['updated_at'] = datetime.datetime.now(datetime.UTC)

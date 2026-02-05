@@ -2,8 +2,8 @@
 from typing import List
 import random
 from src.entities import Game, GamePhase, PlayZone
-from src.boundaries.game_repository import GameRepository, DeckRepository
-
+from src.boundaries.game_repository import GameRepository
+from src.boundaries.deck_repository import DeckRepository
 
 class CreateGameInteractor:
     """Create and initialize a new game."""

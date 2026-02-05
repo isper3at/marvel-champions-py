@@ -1,5 +1,5 @@
 """Interactor to import a deck from MarvelCDB."""
-from src.entities import Deck
+from src.entities import DeckList
 from src.boundaries.deck_repository import DeckRepository
 from src.boundaries.marvelcdb_gateway import MarvelCDBGateway
 
@@ -15,7 +15,7 @@ class ImportDeckInteractor:
         self.deck_repo = deck_repo
         self.marvelcdb = marvelcdb_gateway
     
-    def execute(self, deck_id: str) -> Deck:
+    def execute(self, deck_id: str) -> DeckList:
         """
         Import a deck from MarvelCDB.
         
@@ -31,7 +31,5 @@ class ImportDeckInteractor:
             raise ValueError(f"No deck found for {deck_id}")
         
         # Convert DeckList to Deck and save
-        deck = self.marvelcdb.get_deck(deck_id)
-        saved_deck = self.deck_repo.save(deck)
-        
+        saved_deck = self.deck_repo.save_deck_list(deck_list)
         return saved_deck

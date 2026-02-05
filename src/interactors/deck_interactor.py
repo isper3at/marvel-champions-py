@@ -17,7 +17,8 @@ Modifications return new instances rather than mutating existing ones.
 """
 
 from typing import Optional, List
-from src.boundaries.game_repository import DeckRepository, CardRepository
+from src.boundaries.deck_repository import DeckRepository
+from src.boundaries.card_repository import CardRepository
 from src.boundaries.marvelcdb_gateway import MarvelCDBGateway
 from src.entities import Deck, DeckCard
 from .card_interactor import CardInteractor

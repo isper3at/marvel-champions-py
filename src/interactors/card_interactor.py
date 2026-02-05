@@ -18,7 +18,7 @@ Each operation returns new entities or lists, maintaining functional purity.
 """
 
 from typing import Optional, List
-from src.boundaries.game_repository import CardRepository
+from src.boundaries.card_repository import CardRepository
 from src.boundaries.marvelcdb_gateway import MarvelCDBGateway
 from src.boundaries.image_storage import ImageStorage
 from src.entities import Card

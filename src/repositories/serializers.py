@@ -5,7 +5,7 @@ Each entity has a serializer class with to_doc() and to_entity() methods.
 
 from datetime import datetime
 from src.entities import (
-    Card, Deck, DeckCard, Game, GamePhase, Player, 
+    Card, Deck, DeckList, DeckCard, Game, GamePhase, Player, 
     PlayZone, CardInPlay, Position, DeckInPlay, Dial
 )
 from src.entities.encounter_deck import EncounterDeck
@@ -51,6 +51,28 @@ class DeckCardSerializer:
             'quantity': deck_card.quantity
         }
 
+class DeckListSerializer:
+    @staticmethod
+    def to_entity(doc: dict) -> DeckList:
+        """Convert MongoDB document to DeckList entity"""
+        cards = tuple(
+            DeckCardSerializer.to_entity(c)
+            for c in doc.get('cards', [])
+        )
+        return DeckList(
+            id=doc['deck_id'],
+            name=doc['name'],
+            cards=cards
+        )
+    
+    @staticmethod
+    def to_doc(deck_list: DeckList) -> dict:
+        """Convert DeckList entity to MongoDB document"""
+        return {
+            'deck_id': deck_list.id,
+            'name': deck_list.name,
+            'cards': [DeckCardSerializer.to_doc(c) for c in deck_list.cards]
+        }
 
 class DeckSerializer:
     @staticmethod

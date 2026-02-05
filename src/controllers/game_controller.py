@@ -45,17 +45,15 @@ def init_game_controller(
     delete_game_interactor
 ):
     """Initialize controller with interactors."""
-    global (
-        _list_games_interactor,
-        _get_game_interactor,
-        _draw_card_interactor,
-        _shuffle_discard_interactor,
-        _play_card_interactor,
-        _move_card_interactor,
-        _toggle_exhaustion_interactor,
-        _add_counter_interactor,
-        _delete_game_interactor,
-    )
+    global _list_games_interactor
+    global _get_game_interactor
+    global _draw_card_interactor
+    global _shuffle_discard_interactor
+    global _play_card_interactor
+    global _move_card_interactor
+    global _toggle_exhaustion_interactor
+    global _add_counter_interactor
+    global _delete_game_interactor
     _list_games_interactor = list_games_interactor
     _get_game_interactor = get_game_interactor
     _draw_card_interactor = draw_card_interactor

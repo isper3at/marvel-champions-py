@@ -123,14 +123,6 @@ export const deckAPI = {
     const response = await axios.get(`${API_BASE_URL}/api/decks/${deckId}`);
     return response.data;
   },
-
-  /**
-   * Get deck from MarvelCDB
-   */
-  async getMarvelCDBDeck(deckId: string) {
-    const response = await axios.get(`${API_BASE_URL}/api/decks/marvelcdb/${deckId}`);
-    return response.data;
-  },
 };
 
 export const gameAPI = {

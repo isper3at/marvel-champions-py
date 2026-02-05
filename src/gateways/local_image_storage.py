@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 from typing import Optional, List
+
+from PIL.Image import Image
 from src.config import ImageStorageConfig
 from src.boundaries.image_storage import ImageStorage
 
@@ -97,3 +99,10 @@ class LocalImageStorage(ImageStorage):
                 codes.append(code)
         return codes
 
+    def get_image(self, card_code: str) -> Optional[Image]:
+        img_path = self.get_image_path(card_code)
+
+        if img_path:
+            from PIL import Image
+            return Image.open(img_path) 
+        return None

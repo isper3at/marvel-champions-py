@@ -1,7 +1,7 @@
 """Interactor to play a card to the table."""
 from typing import Optional
 import uuid
-from src.entities import Game, CardInPlay, Position, PlayZone, GameState
+from src.entities import Game, CardInPlay, Position, PlayZone
 from src.boundaries.game_repository import GameRepository
 
 

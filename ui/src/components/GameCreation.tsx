@@ -108,7 +108,7 @@ export const GameCreation: React.FC<GameCreationProps> = ({
     setLoading(true);
     setError('');
     try {
-      const deck = await deckAPI.getMarvelCDBDeck(deckCode.trim());
+      const deck = await deckAPI.getDeck(deckCode.trim());
       setLoadedDeck(deck);
     } catch (err) {
       console.error('Failed to load deck:', err);

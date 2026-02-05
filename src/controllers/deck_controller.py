@@ -75,14 +75,17 @@ def get_deck(deck_id: str):
         deck = _get_deck_interactor.execute(deck_id)
         
         if not deck:
-            logger.warning(f"Deck not found: {deck_id}")
-            return jsonify({'error': 'Deck not found'}), 404
+            logger.warning(f"Deck not found, importing from marvelcdb: {deck_id}")
+            deck = _import_deck_interactor.execute(deck_id)
+
+            if not deck:
+                logger.warning(f"Deck not found in MarvelCDB: {deck_id}")
+                return jsonify({'error': 'Deck not found'}), 404
         
         return jsonify({
             'id': deck.id,
             'name': deck.name,
-            'card_count': deck.total_cards(),
-            'source_url': deck.source_url
+            'cards': deck.cards,
         })
         
     except Exception as e:

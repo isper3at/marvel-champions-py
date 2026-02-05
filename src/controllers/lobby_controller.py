@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 _create_lobby_interactor = None
 _join_lobby_interactor = None
 _leave_lobby_interactor = None
+_get_lobby_interactor = None
 _choose_deck_interactor = None
 _toggle_ready_interactor = None
 _start_game_interactor = None
@@ -36,6 +37,7 @@ def init_lobby_controller(
     create_lobby_interactor,
     join_lobby_interactor,
     leave_lobby_interactor,
+    get_lobby_interactor,
     choose_deck_interactor,
     toggle_ready_interactor,
     start_game_interactor,
@@ -44,20 +46,20 @@ def init_lobby_controller(
     delete_lobby_interactor
 ):
     """Initialize controller with interactors."""
-    global (
-        _create_lobby_interactor,
-        _join_lobby_interactor,
-        _leave_lobby_interactor,
-        _choose_deck_interactor,
-        _toggle_ready_interactor,
-        _start_game_interactor,
-        _build_encounter_deck_interactor,
-        _list_lobbies_interactor,
-        _delete_lobby_interactor,
-    )
+    global _create_lobby_interactor
+    global _join_lobby_interactor
+    global _leave_lobby_interactor
+    global _get_lobby_interactor
+    global _choose_deck_interactor
+    global _toggle_ready_interactor
+    global _start_game_interactor
+    global _build_encounter_deck_interactor
+    global _list_lobbies_interactor
+    global _delete_lobby_interactor
     _create_lobby_interactor = create_lobby_interactor
     _join_lobby_interactor = join_lobby_interactor
     _leave_lobby_interactor = leave_lobby_interactor
+    _get_lobby_interactor = get_lobby_interactor
     _choose_deck_interactor = choose_deck_interactor
     _toggle_ready_interactor = toggle_ready_interactor
     _start_game_interactor = start_game_interactor
@@ -121,6 +123,28 @@ def list_lobbies():
         logger.error(f"Error listing lobbies: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
+@lobby_bp.route('/<lobby_id>', methods=['GET'])
+@audit_endpoint('get_lobby')
+def get_lobby(lobby_id):
+    """Get lobby details."""
+    try:
+        logger.info(f"Fetching lobby {lobby_id}")
+        game = _get_lobby_interactor.execute(lobby_id)
+        
+        if not game:
+            return jsonify({'error': 'Lobby not found'}), 404
+        
+        return jsonify({
+            'id': str(game.id),
+            'name': game.name,
+            'host': game.host,
+            'phase': game.phase.value,
+            'players': [{'name': p.name, 'is_ready': p.is_ready} for p in game.players],
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching lobby: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 @lobby_bp.route('/<lobby_id>/join', methods=['POST'])
 @audit_endpoint('join_lobby')

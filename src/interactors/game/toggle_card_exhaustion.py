@@ -1,7 +1,7 @@
 """Interactor to toggle card exhaustion."""
 from typing import Optional
 import uuid
-from src.entities import Game, GameState
+from src.entities import Game
 from src.boundaries.game_repository import GameRepository
 
 

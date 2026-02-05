@@ -1,6 +1,7 @@
 from .create_lobby import CreateLobbyInteractor
 from .join_lobby import JoinLobbyInteractor
 from .leave_lobby import LeaveLobbyInteractor
+from .get_lobby import GetLobbyInteractor
 from .choose_deck import ChooseDeckInteractor
 from .toggle_ready import ToggleReadyInteractor
 from .start_game import StartGameInteractor
@@ -12,6 +13,7 @@ __all__ = [
     'CreateLobbyInteractor',
     'JoinLobbyInteractor',
     'LeaveLobbyInteractor',
+    'GetLobbyInteractor',
     'ChooseDeckInteractor',
     'ToggleReadyInteractor',
     'StartGameInteractor',

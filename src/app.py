@@ -145,7 +145,7 @@ def create_app(config_override=None):
         ImportDeckInteractor, GetDeckInteractor, UpdateDeckInteractor, DeleteDeckInteractor, ListDecksInteractor
     )
     from src.interactors.lobby import (
-        CreateLobbyInteractor, JoinLobbyInteractor, LeaveLobbyInteractor, ChooseDeckInteractor,
+        CreateLobbyInteractor, JoinLobbyInteractor, LeaveLobbyInteractor, GetLobbyInteractor, ChooseDeckInteractor,
         ToggleReadyInteractor, StartGameInteractor, BuildEncounterDeckInteractor, ListLobbiesInteractor, DeleteLobbyInteractor
     )
     from src.interactors.game import (
@@ -171,6 +171,7 @@ def create_app(config_override=None):
         create_lobby_interactor = CreateLobbyInteractor(game_repo)
         join_lobby_interactor = JoinLobbyInteractor(game_repo)
         leave_lobby_interactor = LeaveLobbyInteractor(game_repo)
+        get_lobby_interactor = GetLobbyInteractor(game_repo)
         choose_deck_interactor = ChooseDeckInteractor(game_repo, deck_repo, marvelcdb_gateway)
         toggle_ready_interactor = ToggleReadyInteractor(game_repo)
         start_game_interactor = StartGameInteractor(game_repo)
@@ -228,6 +229,7 @@ def create_app(config_override=None):
             create_lobby_interactor,
             join_lobby_interactor,
             leave_lobby_interactor,
+            get_lobby_interactor,
             choose_deck_interactor,
             toggle_ready_interactor,
             start_game_interactor,
