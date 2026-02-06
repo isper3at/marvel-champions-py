@@ -11,6 +11,7 @@ from src.entities import Card, Deck, DeckCard
 from src.entities.deck import DeckList
 from src.entities.encounter_deck import EncounterDeck
 from .local_image_storage import LocalImageStorage
+from playwright.sync_api import sync_playwright
 
 class MarvelCDBClient(MarvelCDBGateway):
     """
@@ -83,14 +84,8 @@ class MarvelCDBClient(MarvelCDBGateway):
                 name=card_name,
                 quantity=quantity
             )
-            
-            # Separate special cards
-            if card_type is 'Villain':
-                encounter_deck.villian_cards.append(card)
-            elif card_type is 'Main Scheme':
-                encounter_deck.main_scheme_cards.append(card)
-            else:
-                encounter_deck.cards.append(card)
+        
+            encounter_deck.cards.append(card)
             
         return encounter_deck
 
@@ -137,16 +132,30 @@ class MarvelCDBClient(MarvelCDBGateway):
             {'19020': 1}
         """
         self._rate_limit()
-        
+
         try:
-            url = f"{self.config.base_url}/decklist/view/{deck_id}"
+            url = f"{self.config.base_url}/deck/view/{deck_id}"
             print(f"Fetching deck from URL: {url}")
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
             
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            deck_name = soup.find('h1', class_='decklist-header').get_text(strip=True)
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+                page.goto(url, timeout=100000)
+                wait_time = 0
+                while wait_time < 30:  # Wait up to 30 seconds for content to load
+                    content = page.content()
+                    if 'deck-header' in content:
+                        break
+                    time.sleep(1)
+                    wait_time += 1
+                soup = BeautifulSoup(page.content(), 'html.parser')
+                browser.close()
+
+            print(f"Found html {soup.prettify()}")
+            header = soup.find('div', class_='col-md-12')
+            print(f"Found header: {header}")
+            deck_name = header.find('h1').get_text(strip=True)
+            print(f"Extracted deck name: {deck_name}")
             deck_meta = soup.find('div', class_='deck-meta')
 
             cards = []
