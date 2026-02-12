@@ -19,7 +19,7 @@ class LocalImageStorage(ImageStorage):
         # Create directory if it doesn't exist
         self.storage_path.mkdir(parents=True, exist_ok=True)
     
-    def save_image(self, card_code: str, image_data: bytes) -> str:
+    def save_image(self, card_code: str, image: Image) -> str:
         """
         Save card image and return the file path.
         
@@ -30,19 +30,13 @@ class LocalImageStorage(ImageStorage):
         Returns:
             Path to the saved image
         """
-        if len(image_data) > self.config.max_image_size:
-            raise ValueError(
-                f"Image size {len(image_data)} exceeds maximum "
-                f"allowed size of {self.config.max_image_size} bytes"
-            )
-        
         # Sanitize card code for filename (replace slashes, etc.)
         safe_code = card_code.replace('/', '_').replace('\\', '_')
-        filename = f"{safe_code}.jpg"
+        filename = f"{safe_code}.png"
         filepath = self.storage_path / filename
         
-        with open(filepath, 'wb') as f:
-            f.write(image_data)
+        print(f"Saving image for {card_code} to {filepath}...")
+        image.save(filepath)
         
         return str(filepath)
     

@@ -37,8 +37,10 @@ class CardSerializer:
 class DeckCardSerializer:
     @staticmethod
     def to_entity(doc: dict) -> DeckCard:
+        
         """Convert MongoDB document to DeckCard entity"""
         return DeckCard(
+            name=doc['name'],
             code=doc['code'],
             quantity=doc['quantity']
         )
@@ -47,6 +49,7 @@ class DeckCardSerializer:
     def to_doc(deck_card: DeckCard) -> dict:
         """Convert DeckCard entity to MongoDB document"""
         return {
+            'name': deck_card.name,
             'code': deck_card.code,
             'quantity': deck_card.quantity
         }
@@ -55,7 +58,7 @@ class DeckListSerializer:
     @staticmethod
     def to_entity(doc: dict) -> DeckList:
         """Convert MongoDB document to DeckList entity"""
-        cards = tuple(
+        cards = list(
             DeckCardSerializer.to_entity(c)
             for c in doc.get('cards', [])
         )
@@ -68,17 +71,19 @@ class DeckListSerializer:
     @staticmethod
     def to_doc(deck_list: DeckList) -> dict:
         """Convert DeckList entity to MongoDB document"""
+
         return {
             'deck_id': deck_list.id,
             'name': deck_list.name,
-            'cards': [DeckCardSerializer.to_doc(c) for c in deck_list.cards]
+            'cards': [DeckCardSerializer.to_doc(c) for c in deck_list.cards],
+            'is_module': not deck_list.id.isdigit()
         }
 
 class DeckSerializer:
     @staticmethod
     def to_entity(doc: dict) -> Deck:
         """Convert MongoDB document to Deck entity"""
-        cards = tuple(
+        cards = list(
             CardSerializer.to_entity(c)
             for c in doc.get('cards', [])
         )

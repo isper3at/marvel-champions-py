@@ -2,6 +2,8 @@ import datetime
 import requests
 import time
 import re
+import io
+from PIL import Image
 from bs4 import BeautifulSoup
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -151,35 +153,33 @@ class MarvelCDBClient(MarvelCDBGateway):
                 soup = BeautifulSoup(page.content(), 'html.parser')
                 browser.close()
 
-            print(f"Found html {soup.prettify()}")
             header = soup.find('div', class_='col-md-12')
-            print(f"Found header: {header}")
             deck_name = header.find('h1').get_text(strip=True)
             print(f"Extracted deck name: {deck_name}")
-            deck_meta = soup.find('div', class_='deck-meta')
-
+    
             cards = []
             
             deck_content = soup.find_all(class_='deck-content')
-            
             for section in deck_content: #column
                 for type in section.find_all('div'):
                     for types in type.find_all('div'):
                         for card in types.find_all('div'):
                             # Get the text content
                             text = card.get_text(strip=True)
-                            
+                            print(f"card div text: '{text}'")                     
                             # Check if this div starts with a quantity pattern (e.g., "1x", "2x", "3x")
                             quantity_match = re.match(r'^\dx', text)
                             
                             if quantity_match:
                                 quantity = int(re.sub(r'\D', '', quantity_match.group(0)))
+                                print(f"Extracted quantity: {quantity}")
                             
                             # Find the <a> tag with data-code attribute
                             link = card.find('a', {'data-code': True})
                             
                             if link and link.get('data-code'):
                                 card_code = link['data-code']
+                                print(f"Extracted card code: {card_code}, name: {link.get_text(strip=True)}")
                                 cards.append(DeckCard(code=str(card_code), name=link.get_text(strip=True), quantity=quantity))
                     
             return DeckList(id=deck_id, name=deck_name, cards=cards)
@@ -223,7 +223,7 @@ class MarvelCDBClient(MarvelCDBGateway):
             print(f"Error fetching card info: {e}")
             return Card('-1', 'Unknown Card', 'Unknown')
     
-    def get_card_image(self, card_code: str, local_image_store: LocalImageStorage) -> bool:
+    def get_card_image(self, card_code: str) -> Image.Image:
         """
         Extract and download card image from MarvelCDB HTML.
         
@@ -250,13 +250,12 @@ class MarvelCDBClient(MarvelCDBGateway):
         
         # 3. Check if the request was successful (status code 200)
         if response.status_code == 200:
-            # 4. Open a local file in write-binary mode ('wb') and write the content
-            local_image_store.save_image(card_code, response.content)
             print(f"Image downloaded successfully!")
-            return True
+            image = Image.open(io.BytesIO(response.content))
+            return image
         else:
             print(f"Failed to download image. Status code: {response.status_code}")
-            return False
+            return None
 
     def get_cards_from_deck_list(self, deck_list: DeckList) -> Deck:
         """Convert a DeckList to a Deck"""

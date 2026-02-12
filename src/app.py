@@ -139,10 +139,10 @@ def create_app(config_override=None):
     # 6. INITIALIZE INTERACTORS (Business Logic - 46 individual units)
     # ========================================================================
     from src.interactors.card import (
-        ImportCardInteractor, GetCardInteractor, SearchCardsInteractor, GetCardImageInteractor
+        ImportCardInteractor, GetCardInteractor, SearchCardsInteractor, GetCardImageInteractor, SaveCardInteractor
     )
     from src.interactors.deck import (
-        ImportDeckInteractor, GetDeckInteractor, UpdateDeckInteractor, DeleteDeckInteractor, ListDecksInteractor
+        ImportDeckInteractor, GetDeckInteractor, UpdateDeckInteractor, DeleteDeckInteractor, ListDecksInteractor, SaveDeckInteractor
     )
     from src.interactors.lobby import (
         CreateLobbyInteractor, JoinLobbyInteractor, LeaveLobbyInteractor, GetLobbyInteractor, ChooseDeckInteractor,
@@ -155,17 +155,19 @@ def create_app(config_override=None):
     
     try:
         # Card Interactors
-        import_card_interactor = ImportCardInteractor(card_repo, marvelcdb_gateway, image_storage)
+        import_card_interactor = ImportCardInteractor(marvelcdb_gateway, image_storage)
         get_card_interactor = GetCardInteractor(card_repo)
         search_cards_interactor = SearchCardsInteractor(card_repo)
         get_card_image_interactor = GetCardImageInteractor(marvelcdb_gateway, image_storage)
+        save_card_interactor = SaveCardInteractor(card_repo)
         
         # Deck Interactors
-        import_deck_interactor = ImportDeckInteractor(deck_repo, marvelcdb_gateway)
+        import_deck_interactor = ImportDeckInteractor(marvelcdb_gateway)
         get_deck_interactor = GetDeckInteractor(deck_repo)
         update_deck_interactor = UpdateDeckInteractor(deck_repo)
         delete_deck_interactor = DeleteDeckInteractor(deck_repo)
         list_decks_interactor = ListDecksInteractor(deck_repo)
+        save_deck_interactor = SaveDeckInteractor(deck_repo)
         
         # Lobby Interactors
         create_lobby_interactor = CreateLobbyInteractor(game_repo)
@@ -212,7 +214,8 @@ def create_app(config_override=None):
             get_card_interactor,
             search_cards_interactor,
             import_card_interactor,
-            get_card_image_interactor
+            get_card_image_interactor,
+            save_card_interactor
         )
         
         # Wire up deck controller
@@ -221,7 +224,8 @@ def create_app(config_override=None):
             get_deck_interactor,
             import_deck_interactor,
             update_deck_interactor,
-            delete_deck_interactor
+            delete_deck_interactor,
+            save_deck_interactor
         )
         
         # Wire up lobby controller

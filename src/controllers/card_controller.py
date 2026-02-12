@@ -21,20 +21,23 @@ _get_card_interactor = None
 _search_cards_interactor = None
 _import_card_interactor = None
 _get_card_image_interactor = None
+_save_card_interactor = None
 
 
 def init_card_controller(
     get_card_interactor,
     search_cards_interactor,
     import_card_interactor,
-    get_card_image_interactor
+    get_card_image_interactor,
+    save_card_interactor
 ):
     """Initialize controller with interactors."""
-    global _get_card_interactor, _search_cards_interactor, _import_card_interactor, _get_card_image_interactor
+    global _get_card_interactor, _search_cards_interactor, _import_card_interactor, _get_card_image_interactor, _save_card_interactor
     _get_card_interactor = get_card_interactor
     _search_cards_interactor = search_cards_interactor
     _import_card_interactor = import_card_interactor
     _get_card_image_interactor = get_card_image_interactor
+    _save_card_interactor = save_card_interactor
 
 
 @card_bp.route('/<code>', methods=['GET'])
@@ -46,8 +49,13 @@ def get_card(code: str):
         card = _get_card_interactor.execute(code)
         
         if not card:
-            logger.warning(f"Card not found: {code}")
-            return jsonify({'error': 'Card not found'}), 404
+            logger.warning(f"Card not found: {code}, importing....")
+
+            card = _import_card_interactor.execute(code)
+            _save_card_interactor.execute(card)
+            if not card:
+                logger.warning(f"Card not found in MarvelCDB: {code}")
+                return jsonify({'error': 'Card not found'}), 404
         
         return jsonify({
             'code': card.code,

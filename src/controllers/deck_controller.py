@@ -22,22 +22,25 @@ _get_deck_interactor = None
 _import_deck_interactor = None
 _update_deck_interactor = None
 _delete_deck_interactor = None
-
+_save_deck_interactor = None
 
 def init_deck_controller(
     list_decks_interactor,
     get_deck_interactor,
     import_deck_interactor,
     update_deck_interactor,
-    delete_deck_interactor
+    delete_deck_interactor,
+    save_deck_interactor
 ):
     """Initialize controller with interactors."""
-    global _list_decks_interactor, _get_deck_interactor, _import_deck_interactor, _update_deck_interactor, _delete_deck_interactor
+    global _list_decks_interactor, _get_deck_interactor, _import_deck_interactor, _update_deck_interactor, _delete_deck_interactor, _save_deck_interactor
     _list_decks_interactor = list_decks_interactor
     _get_deck_interactor = get_deck_interactor
     _import_deck_interactor = import_deck_interactor
     _update_deck_interactor = update_deck_interactor
     _delete_deck_interactor = delete_deck_interactor
+    _save_deck_interactor = save_deck_interactor
+
 
 
 @deck_bp.route('', methods=['GET'])
@@ -53,8 +56,8 @@ def list_decks():
                 {
                     'id': deck.id,
                     'name': deck.name,
-                    'card_count': deck.total_cards(),
-                    'source_url': deck.source_url
+                    'card_count': deck.card_count(),
+                    'source_url': f"https://marvelcdb.com/deck/view/{deck.id}"
                 }
                 for deck in decks
             ],
@@ -69,7 +72,7 @@ def list_decks():
 @deck_bp.route('/<deck_id>', methods=['GET'])
 @audit_endpoint('get_deck')
 def get_deck(deck_id: str):
-    """Get a deck by ID."""
+    """Get a deck by ID. If the deck is not found locally, attempt to import from MarvelCDB, then save it locally."""
     try:
         logger.info(f"Fetching deck: {deck_id}")
         deck = _get_deck_interactor.execute(deck_id)
@@ -77,6 +80,8 @@ def get_deck(deck_id: str):
         if not deck:
             logger.warning(f"Deck not found, importing from marvelcdb: {deck_id}")
             deck = _import_deck_interactor.execute(deck_id)
+
+            _save_deck_interactor.execute(deck)
 
             if not deck:
                 logger.warning(f"Deck not found in MarvelCDB: {deck_id}")
