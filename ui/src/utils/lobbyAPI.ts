@@ -174,4 +174,32 @@ export const gameAPI = {
   },
 };
 
+  /**
+   * Save an encounter deck configuration
+   */
+  async saveEncounterDeck(moduleNames: string[], name: string) {
+    const response = await axios.post(`${API_BASE_URL}/api/lobby/encounter/save`, {
+      module_names: moduleNames,
+      name,
+    });
+    return response.data;
+  }
+
+  /**
+   * List all saved encounter deck configurations
+   */
+  async listSavedEncounterDecks() {
+    const response = await axios.get(`${API_BASE_URL}/api/lobby/encounter/saved`);
+    return response.data;
+  }
+
+  /**
+   * Load a saved encounter deck by name
+   * Returns the encounter deck object which needs to be parsed to extract module names
+   */
+  async loadSavedEncounterDeck(name: string) {
+    const response = await axios.get(`${API_BASE_URL}/api/lobby/encounter/load/${encodeURIComponent(name)}`);
+    return response.data;
+  }
+  
 export const lobbyAPI = new LobbyAPI();

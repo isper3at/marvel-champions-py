@@ -328,6 +328,8 @@ class GameSerializer:
         
         return doc
 
+# Add this to src/repositories/serializers.py in the EncounterDeckSerializer class
+
 class EncounterDeckSerializer:
     @staticmethod
     def to_entity(doc: dict) -> EncounterDeck:
@@ -357,7 +359,8 @@ class EncounterDeckSerializer:
             scenario_cards=scenario_cards,
             source_url=doc.get('source_url'),
             created_at=doc.get('created_at'),
-            updated_at=doc.get('updated_at')
+            updated_at=doc.get('updated_at'),
+            saved_names=tuple(doc.get('saved_names', []))  # NEW
         )
         
     @staticmethod
@@ -372,7 +375,8 @@ class EncounterDeckSerializer:
             'scenario_cards': [CardSerializer.to_doc(c) for c in encounter_deck.scenario_cards],
             'source_url': encounter_deck.source_url,
             'created_at': encounter_deck.created_at,
-            'updated_at': encounter_deck.updated_at
+            'updated_at': encounter_deck.updated_at,
+            'saved_names': list(encounter_deck.saved_names)  # NEW
         }
         
 class EncounterDeckInPlaySerializer:

@@ -146,7 +146,8 @@ def create_app(config_override=None):
     )
     from src.interactors.lobby import (
         CreateLobbyInteractor, JoinLobbyInteractor, LeaveLobbyInteractor, GetLobbyInteractor, ChooseDeckInteractor,
-        ToggleReadyInteractor, StartGameInteractor, BuildEncounterDeckInteractor, ListLobbiesInteractor, DeleteLobbyInteractor
+        ToggleReadyInteractor, StartGameInteractor, BuildEncounterDeckInteractor, ListLobbiesInteractor, DeleteLobbyInteractor,
+        ListSavedEncounterDecksInteractor, LoadSavedEncounterDeckInteractor
     )
     from src.interactors.game import (
         CreateGameInteractor, GetGameInteractor, ListGamesInteractor, DrawCardInteractor, ShuffleDiscardInteractor,
@@ -180,6 +181,9 @@ def create_app(config_override=None):
         build_encounter_deck_interactor = BuildEncounterDeckInteractor(deck_repo, marvelcdb_gateway)
         list_lobbies_interactor = ListLobbiesInteractor(game_repo)
         delete_lobby_interactor = DeleteLobbyInteractor(game_repo)
+        save_encounter_deck_interactor = SaveDeckInteractor(deck_repo),
+        list_saved_encounter_decks_interactor = ListSavedEncounterDecksInteractor(deck_repo),
+        load_saved_encounter_deck_interactor = LoadSavedEncounterDeckInteractor(deck_repo)
         
         # Game Interactors
         create_game_interactor = CreateGameInteractor(game_repo, deck_repo)
@@ -239,7 +243,10 @@ def create_app(config_override=None):
             start_game_interactor,
             build_encounter_deck_interactor,
             list_lobbies_interactor,
-            delete_lobby_interactor
+            delete_lobby_interactor,
+            save_encounter_deck_interactor,
+            list_saved_encounter_decks_interactor,
+            load_saved_encounter_deck_interactor
         )
         
         # Wire up game controller

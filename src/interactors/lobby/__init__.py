@@ -8,6 +8,9 @@ from .start_game import StartGameInteractor
 from .build_encounter_deck import BuildEncounterDeckInteractor
 from .list_lobbies import ListLobbiesInteractor
 from .delete_lobby import DeleteLobbyInteractor
+from .save_encounter import SaveEncounterDeckInteractor
+from .list_encounters import ListSavedEncounterDecksInteractor
+from .get_encounter import LoadSavedEncounterDeckInteractor
 
 __all__ = [
     'CreateLobbyInteractor',
@@ -20,4 +23,7 @@ __all__ = [
     'BuildEncounterDeckInteractor',
     'ListLobbiesInteractor',
     'DeleteLobbyInteractor',
+    'SaveEncounterDeckInteractor',
+    'ListSavedEncounterDecksInteractor',
+    'LoadSavedEncounterDeckInteractor'
 ]

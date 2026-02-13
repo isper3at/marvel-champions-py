@@ -1,6 +1,9 @@
 /**
- * GameCreation Component - Lobby for setting up a game
- * Allows host to manage encounter modules and players to select decks
+ * GameCreation Component - Enhanced lobby for setting up a game
+ * Features:
+ * - Save/load encounter deck configurations
+ * - Click-to-select player decks with scrollable list
+ * - Orphaned game cleanup (handled by backend)
  */
 
 import React, { useState, useEffect } from 'react';
@@ -37,9 +40,11 @@ interface Deck {
   source_url?: string;
 }
 
-interface Module {
-  id: string;
-  name: string;
+interface SavedEncounterDeck {
+  modules: string[];
+  names: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 interface LobbyState {
@@ -48,7 +53,7 @@ interface LobbyState {
   host: string;
   players: Player[];
   encounter_deck_id?: string;
-  modules: Module[];
+  modules: string[];
   all_ready: boolean;
   can_start: boolean;
 }
@@ -62,16 +67,24 @@ export const GameCreation: React.FC<GameCreationProps> = ({
 }) => {
   const [lobby, setLobby] = useState<LobbyState | null>(null);
   const [deckCode, setDeckCode] = useState<string>('');
-  const [loadedDeck, setLoadedDeck] = useState<Deck | null>(null);
+  const [availableDecks, setAvailableDecks] = useState<Deck[]>([]);
+  const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [moduleName, setModuleName] = useState<string>('');
   const [modules, setModules] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  // Save/Load encounter deck state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [saveName, setSaveName] = useState<string>('');
+  const [savedDecks, setSavedDecks] = useState<SavedEncounterDeck[]>([]);
 
   // Load initial data
   useEffect(() => {
     loadLobby();
+    loadAvailableDecks();
   }, [lobbyId]);
 
   // Poll for lobby updates
@@ -99,6 +112,15 @@ export const GameCreation: React.FC<GameCreationProps> = ({
     }
   };
 
+  const loadAvailableDecks = async () => {
+    try {
+      const response = await deckAPI.listDecks();
+      setAvailableDecks(response.decks || []);
+    } catch (err) {
+      console.error('Failed to load available decks:', err);
+    }
+  };
+
   const loadDeckFromMarvelCDB = async () => {
     if (!deckCode.trim()) {
       setError('Please enter a deck code');
@@ -109,10 +131,32 @@ export const GameCreation: React.FC<GameCreationProps> = ({
     setError('');
     try {
       const deck = await deckAPI.getDeck(deckCode.trim());
-      setLoadedDeck(deck);
+      // Add to available decks and select it
+      setAvailableDecks(prev => {
+        const exists = prev.some(d => d.id === deck.id);
+        return exists ? prev : [...prev, deck];
+      });
+      setSelectedDeckId(deck.id);
+      setDeckCode('');
     } catch (err) {
       console.error('Failed to load deck:', err);
       setError('Failed to load deck from MarvelCDB');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeckClick = async (deckId: string) => {
+    setSelectedDeckId(deckId);
+    setLoading(true);
+    setError('');
+    
+    try {
+      await lobbyAPI.chooseDeck(lobbyId, playerName, deckId);
+      // Lobby will be updated via polling
+    } catch (err) {
+      console.error('Failed to choose deck:', err);
+      setError('Failed to choose deck');
     } finally {
       setLoading(false);
     }
@@ -148,8 +192,7 @@ export const GameCreation: React.FC<GameCreationProps> = ({
     setError('');
 
     try {
-      // This would call a backend endpoint to build the encounter deck
-      // For now, we'll just set it as configured
+      // Build the encounter deck
       console.log('Building encounter with modules:', modules);
       setError('');
     } catch (err) {
@@ -159,19 +202,62 @@ export const GameCreation: React.FC<GameCreationProps> = ({
     }
   };
 
-  const handleChooseDeck = async () => {
-    if (!loadedDeck) return;
+  const handleSaveEncounterDeck = async () => {
+    if (modules.length === 0) {
+      setError('No modules to save');
+      return;
+    }
+
+    if (!saveName.trim()) {
+      setError('Please enter a name for this encounter deck');
+      return;
+    }
 
     setLoading(true);
     setError('');
+
     try {
-      await lobbyAPI.chooseDeck(lobbyId, playerName, loadedDeck.id);
-      setLoadedDeck(null);
-      setDeckCode('');
-      // Lobby will be updated via polling
+      await lobbyAPI.saveEncounterDeck(modules, saveName.trim());
+      setShowSaveModal(false);
+      setSaveName('');
+      setError('');
     } catch (err) {
-      console.error('Failed to choose deck:', err);
-      setError('Failed to choose deck');
+      console.error('Failed to save encounter deck:', err);
+      setError('Failed to save encounter deck');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadSavedDecks = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await lobbyAPI.listSavedEncounterDecks();
+      setSavedDecks(response.saved_decks || []);
+      setShowLoadModal(true);
+    } catch (err) {
+      console.error('Failed to load saved decks:', err);
+      setError('Failed to load saved encounter decks');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadEncounterDeck = async (name: string) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await lobbyAPI.loadSavedEncounterDeck(name);
+      if (response.modules) {
+        setModules(response.modules);
+        setShowLoadModal(false);
+      }
+    } catch (err) {
+      console.error('Failed to load encounter deck:', err);
+      setError('Failed to load encounter deck');
     } finally {
       setLoading(false);
     }
@@ -198,7 +284,7 @@ export const GameCreation: React.FC<GameCreationProps> = ({
 
     try {
       const response = await lobbyAPI.startGame(lobbyId, playerName);
-      onStartGame(response.game_id);
+      onStartGame(response.game.id);
     } catch (err) {
       console.error('Failed to start game:', err);
       setError('Failed to start game');
@@ -207,66 +293,47 @@ export const GameCreation: React.FC<GameCreationProps> = ({
     }
   };
 
-  const currentPlayer = lobby?.players.find((p) => p.name === playerName);
-  const isReady = currentPlayer?.is_ready || false;
-  const hasSelectedDeck = currentPlayer?.deck !== undefined;
+  const handleLeave = async () => {
+    try {
+      await lobbyAPI.leaveLobby(lobbyId, playerName);
+      onLeave();
+    } catch (err) {
+      console.error('Failed to leave lobby:', err);
+    }
+  };
 
   if (!lobby) {
-    return (
-      <div className="game-creation loading">
-        <div className="loading-spinner">Loading lobby...</div>
-      </div>
-    );
+    return <div className="game-creation loading">Loading lobby...</div>;
   }
+
+  const currentPlayer = lobby.players.find((p) => p.name === playerName);
+  const hasSelectedDeck = !!currentPlayer?.deck;
+  const isReady = currentPlayer?.is_ready || false;
 
   return (
     <div className="game-creation">
-      <div className="creation-container">
-        {/* Header */}
-        <header className="creation-header">
-          <div className="header-content">
-            <div className="game-info">
-              <h1 className="game-title">{lobby.name}</h1>
-              <div className="game-meta">
-                <span className="host-badge">Host: {lobby.host}</span>
-                <span className="player-count">{lobby.players.length} Players</span>
-              </div>
-            </div>
-            <button className="btn-leave" onClick={onLeave}>
-              Leave Game
-            </button>
-          </div>
-        </header>
+      <div className="lobby-container">
+        <div className="lobby-header">
+          <h1>{lobby.name}</h1>
+          <button className="btn-leave" onClick={handleLeave}>
+            Leave Lobby
+          </button>
+        </div>
 
-        {error && (
-          <div className="error-banner">
-            <span className="error-icon">⚠</span>
-            {error}
-            <button className="error-dismiss" onClick={() => setError('')}>
-              ✕
-            </button>
-          </div>
-        )}
+        {error && <div className="error-message">{error}</div>}
 
-        <div className="creation-grid">
+        <div className="lobby-layout">
           {/* Left Panel - Players */}
           <aside className="players-panel">
             <div className="panel-header">
-              <h2>Players</h2>
-              <div className="ready-indicator">
-                {lobby.all_ready ? (
-                  <span className="status-ready">✓ All Ready</span>
-                ) : (
-                  <span className="status-waiting">Waiting...</span>
-                )}
-              </div>
+              <h2>Players ({lobby.players.length})</h2>
             </div>
 
             <div className="players-list">
               {lobby.players.map((player) => (
                 <div
                   key={player.name}
-                  className={`player-card ${player.is_ready ? 'ready' : ''} ${
+                  className={`player-card ${
                     player.name === playerName ? 'current' : ''
                   }`}
                 >
@@ -336,13 +403,31 @@ export const GameCreation: React.FC<GameCreationProps> = ({
                     </div>
                   )}
 
-                  <button
-                    className="btn-build-encounter"
-                    onClick={handleBuildEncounter}
-                    disabled={loading || modules.length === 0}
-                  >
-                    {loading ? 'Building...' : 'Build Encounter Deck'}
-                  </button>
+                  <div className="encounter-actions">
+                    <button
+                      className="btn-build-encounter"
+                      onClick={handleBuildEncounter}
+                      disabled={loading || modules.length === 0}
+                    >
+                      {loading ? 'Building...' : 'Build Encounter Deck'}
+                    </button>
+                    
+                    <button
+                      className="btn-secondary"
+                      onClick={() => setShowSaveModal(true)}
+                      disabled={loading || modules.length === 0}
+                    >
+                      Save Deck
+                    </button>
+                    
+                    <button
+                      className="btn-secondary"
+                      onClick={handleLoadSavedDecks}
+                      disabled={loading}
+                    >
+                      Load Saved Deck
+                    </button>
+                  </div>
                 </div>
               </section>
             )}
@@ -363,6 +448,7 @@ export const GameCreation: React.FC<GameCreationProps> = ({
                       type="text"
                       value={deckCode}
                       onChange={(e) => setDeckCode(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && loadDeckFromMarvelCDB()}
                       placeholder="e.g., 12345"
                       disabled={loading}
                     />
@@ -376,46 +462,33 @@ export const GameCreation: React.FC<GameCreationProps> = ({
                   </div>
                 </div>
 
-                {loadedDeck && (
-                  <div className="loaded-deck">
-                    <div className="loaded-deck-header">
-                      <h3>{loadedDeck.name}</h3>
-                      <span>{loadedDeck.card_count} cards</span>
+                {availableDecks.length > 0 && (
+                  <div className="available-decks">
+                    <h4>Available Decks (click to select)</h4>
+                    <div className="decks-list-scrollable">
+                      {availableDecks.map((deck) => {
+                        const isSelected = selectedDeckId === deck.id;
+                        const isCurrentPlayerDeck = currentPlayer?.deck?.id === deck.id;
+                        
+                        return (
+                          <div
+                            key={deck.id}
+                            className={`deck-list-item ${isSelected ? 'selected' : ''} ${
+                              isCurrentPlayerDeck ? 'current-deck' : ''
+                            }`}
+                            onClick={() => handleDeckClick(deck.id)}
+                          >
+                            <div className="deck-list-header">
+                              <span className="deck-list-name">{deck.name}</span>
+                              {isCurrentPlayerDeck && <span className="current-badge">✓ Selected</span>}
+                            </div>
+                            <div className="deck-list-meta">
+                              <span className="deck-list-cards">{deck.card_count || deck.cards.length} cards</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="loaded-deck-cards">
-                      {loadedDeck.cards.slice(0, 10).map((card, index) => (
-                        <div key={index} className="deck-card-item">
-                          {card.quantity}x {card.name}
-                        </div>
-                      ))}
-                      {loadedDeck.cards.length > 10 && (
-                        <div className="deck-card-item more">
-                          ... and {loadedDeck.cards.length - 10} more cards
-                        </div>
-                      )}
-                    </div>
-                    <div className="loaded-deck-actions">
-                      <button
-                        className="btn-primary"
-                        onClick={handleChooseDeck}
-                        disabled={loading}
-                      >
-                        Choose This Deck
-                      </button>
-                      <button
-                        className="btn-secondary"
-                        onClick={() => setLoadedDeck(null)}
-                        disabled={loading}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {hasSelectedDeck && (
-                  <div className="selected-deck-info">
-                    <p>✓ Deck selected: {currentPlayer.deck?.name}</p>
                   </div>
                 )}
               </div>
@@ -484,6 +557,71 @@ export const GameCreation: React.FC<GameCreationProps> = ({
         </div>
       </div>
 
+      {/* Save Encounter Deck Modal */}
+      {showSaveModal && (
+        <div className="modal-overlay" onClick={() => setShowSaveModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Save Encounter Deck</h3>
+            <p>Modules: {modules.join(', ')}</p>
+            <input
+              type="text"
+              placeholder="Enter a name for this deck"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSaveEncounterDeck()}
+            />
+            <div className="modal-actions">
+              <button className="btn-primary" onClick={handleSaveEncounterDeck} disabled={loading || !saveName.trim()}>
+                Save
+              </button>
+              <button className="btn-secondary" onClick={() => setShowSaveModal(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Load Encounter Deck Modal */}
+      {showLoadModal && (
+        <div className="modal-overlay" onClick={() => setShowLoadModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Load Saved Encounter Deck</h3>
+            <div className="saved-decks-list">
+              {savedDecks.length === 0 ? (
+                <p>No saved encounter decks found</p>
+              ) : (
+                savedDecks.map((deck, index) => (
+                  <div
+                    key={index}
+                    className="saved-deck-item"
+                    onClick={() => handleLoadEncounterDeck(deck.names[0])}
+                  >
+                    <div className="saved-deck-names">
+                      {deck.names.map((name, i) => (
+                        <span key={i} className="saved-deck-name-badge">
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="saved-deck-modules">
+                      Modules: {deck.modules.join(', ')}
+                    </div>
+                    <div className="saved-deck-date">
+                      Saved: {new Date(deck.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setShowLoadModal(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

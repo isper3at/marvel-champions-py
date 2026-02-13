@@ -31,7 +31,9 @@ _start_game_interactor = None
 _build_encounter_deck_interactor = None
 _list_lobbies_interactor = None
 _delete_lobby_interactor = None
-
+_save_encounter_deck_interactor = None
+_list_saved_encounter_decks_interactor = None
+_load_saved_encounter_deck_interactor = None
 
 def init_lobby_controller(
     create_lobby_interactor,
@@ -43,7 +45,10 @@ def init_lobby_controller(
     start_game_interactor,
     build_encounter_deck_interactor,
     list_lobbies_interactor,
-    delete_lobby_interactor
+    delete_lobby_interactor,
+    save_encounter_deck_interactor,
+    list_saved_encounter_decks_interactor,
+    load_saved_encounter_deck_interactor 
 ):
     """Initialize controller with interactors."""
     global _create_lobby_interactor
@@ -56,6 +61,10 @@ def init_lobby_controller(
     global _build_encounter_deck_interactor
     global _list_lobbies_interactor
     global _delete_lobby_interactor
+    global _save_encounter_deck_interactor  
+    global _list_saved_encounter_decks_interactor
+    global _load_saved_encounter_deck_interactor 
+    
     _create_lobby_interactor = create_lobby_interactor
     _join_lobby_interactor = join_lobby_interactor
     _leave_lobby_interactor = leave_lobby_interactor
@@ -66,6 +75,9 @@ def init_lobby_controller(
     _build_encounter_deck_interactor = build_encounter_deck_interactor
     _list_lobbies_interactor = list_lobbies_interactor
     _delete_lobby_interactor = delete_lobby_interactor
+    _save_encounter_deck_interactor = save_encounter_deck_interactor
+    _list_saved_encounter_decks_interactor = list_saved_encounter_decks_interactor
+    _load_saved_encounter_deck_interactor = load_saved_encounter_deck_interactor 
 
 
 @lobby_bp.route('', methods=['POST'])
@@ -310,4 +322,139 @@ def delete_lobby(lobby_id):
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         logger.error(f"Error deleting lobby: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@lobby_bp.route('/encounter/save', methods=['POST'])
+@audit_endpoint('save_encounter_deck')
+def save_encounter_deck():
+    """
+    Save an encounter deck configuration with a name.
+    
+    Request body:
+    {
+        "module_names": ["Rhino", "Kree Fanatic"],
+        "name": "Rhino + Kree"
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "encounter_deck": {
+            "id": "encounter_12345",
+            "name": "Rhino",
+            "saved_names": ["Rhino + Kree"],
+            "created_at": "2026-02-12T10:30:00Z",
+            "updated_at": "2026-02-12T10:30:00Z"
+        }
+    }
+    """
+    data = request.get_json()
+    
+    if not data or 'module_names' not in data or 'name' not in data:
+        return jsonify({'error': 'module_names and name are required'}), 400
+    
+    module_names = data['module_names']
+    name = data['name']
+    
+    if not isinstance(module_names, list) or not module_names:
+        return jsonify({'error': 'module_names must be a non-empty list'}), 400
+    
+    if not isinstance(name, str) or not name.strip():
+        return jsonify({'error': 'name must be a non-empty string'}), 400
+    
+    try:
+        logger.info(f"Saving encounter deck '{name}' with modules: {module_names}")
+        encounter_deck = _save_encounter_deck_interactor.execute(
+            module_names=module_names,
+            save_name=name
+        )
+        
+        return jsonify({
+            'success': True,
+            'encounter_deck': {
+                'id': encounter_deck.id,
+                'name': encounter_deck.name,
+                'saved_names': list(encounter_deck.saved_names),
+                'created_at': encounter_deck.created_at.isoformat() if encounter_deck.created_at else None,
+                'updated_at': encounter_deck.updated_at.isoformat() if encounter_deck.updated_at else None
+            }
+        })
+        
+    except ValueError as e:
+        logger.warning(f"Error saving encounter deck: {e}")
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Error saving encounter deck: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@lobby_bp.route('/encounter/saved', methods=['GET'])
+@audit_endpoint('list_saved_encounter_decks')
+def list_saved_encounter_decks():
+    """
+    List all saved encounter deck configurations.
+    
+    Returns:
+    {
+        "saved_decks": [
+            {
+                "id": "encounter_12345",
+                "name": "Rhino",
+                "saved_names": ["Rhino + Kree", "Standard"],
+                "created_at": "2026-02-12T10:30:00Z",
+                "updated_at": "2026-02-12T10:30:00Z"
+            },
+            ...
+        ],
+        "count": 5
+    }
+    """
+    try:
+        logger.info("Fetching all saved encounter decks")
+        saved_decks = _list_saved_encounter_decks_interactor.execute()
+        
+        return jsonify({
+            'saved_decks': saved_decks,
+            'count': len(saved_decks)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error listing saved encounter decks: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@lobby_bp.route('/encounter/load/<n>', methods=['GET'])
+@audit_endpoint('load_saved_encounter_deck')
+def load_saved_encounter_deck(name: str):
+    """
+    Load a saved encounter deck configuration by name and return the module names.
+    
+    Args:
+        name: Name/alias of the saved configuration
+    
+    Returns:
+    {
+        "success": true,
+        "modules": ["Rhino", "Kree Fanatic"]
+    }
+    
+    Or:
+    {
+        "error": "Not found"
+    } (404)
+    """
+    try:
+        logger.info(f"Loading saved encounter deck '{name}'")
+        modules = _load_saved_encounter_deck_interactor.execute(name)
+        
+        if modules is None:
+            return jsonify({'error': 'Not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'modules': modules
+        })
+        
+    except Exception as e:
+        logger.error(f"Error loading saved encounter deck: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
