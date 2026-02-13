@@ -105,6 +105,44 @@ class LobbyAPI {
     });
     return response.data;
   }
+
+  /**
+   * Save an encounter deck configuration with a name
+   * This will build the encounter deck from the provided modules and save it
+   * 
+   * @param moduleNames - Array of module names (e.g., ["Rhino", "Kree Fanatic"])
+   * @param encounterName - Name to save this encounter deck configuration as
+   */
+  async saveEncounterDeck(moduleNames: string[], encounterName: string) {
+    const response = await axios.post(`${API_BASE_URL}/api/lobby/encounter/save`, {
+      module_names: moduleNames,
+      name: encounterName,
+    });
+    return response.data;
+  }
+
+  /**
+   * List all saved encounter deck configurations
+   * Returns array of saved decks with their names and metadata
+   */
+  async listSavedEncounterDecks() {
+    const response = await axios.get(`${API_BASE_URL}/api/lobby/encounter/saved`);
+    return response.data;
+  }
+
+  /**
+   * Load a saved encounter deck by name
+   * Returns the module names that make up this encounter deck
+   * 
+   * @param encounterName - Name of the saved encounter deck
+   * @returns Object with success flag and modules array
+   */
+  async loadSavedEncounterDeck(encounterName: string) {
+    const response = await axios.get(
+      `${API_BASE_URL}/api/lobby/encounter/load/${encodeURIComponent(encounterName)}`
+    );
+    return response.data;
+  }
 }
 
 export const deckAPI = {
@@ -117,10 +155,28 @@ export const deckAPI = {
   },
 
   /**
-   * Get a specific deck
+   * Get a specific deck by ID
    */
   async getDeck(deckId: string) {
     const response = await axios.get(`${API_BASE_URL}/api/decks/${deckId}`);
+    return response.data;
+  },
+
+  /**
+   * Import a deck from MarvelCDB
+   */
+  async importDeck(deckId: string) {
+    const response = await axios.post(`${API_BASE_URL}/api/decks/import`, {
+      deck_id: deckId,
+    });
+    return response.data;
+  },
+
+  /**
+   * Delete a deck
+   */
+  async deleteDeck(deckId: string) {
+    const response = await axios.delete(`${API_BASE_URL}/api/decks/${deckId}`);
     return response.data;
   },
 };
@@ -174,32 +230,4 @@ export const gameAPI = {
   },
 };
 
-  /**
-   * Save an encounter deck configuration
-   */
-  async saveEncounterDeck(moduleNames: string[], name: string) {
-    const response = await axios.post(`${API_BASE_URL}/api/lobby/encounter/save`, {
-      module_names: moduleNames,
-      name,
-    });
-    return response.data;
-  }
-
-  /**
-   * List all saved encounter deck configurations
-   */
-  async listSavedEncounterDecks() {
-    const response = await axios.get(`${API_BASE_URL}/api/lobby/encounter/saved`);
-    return response.data;
-  }
-
-  /**
-   * Load a saved encounter deck by name
-   * Returns the encounter deck object which needs to be parsed to extract module names
-   */
-  async loadSavedEncounterDeck(name: string) {
-    const response = await axios.get(`${API_BASE_URL}/api/lobby/encounter/load/${encodeURIComponent(name)}`);
-    return response.data;
-  }
-  
 export const lobbyAPI = new LobbyAPI();
